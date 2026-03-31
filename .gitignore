@@ -1,0 +1,23 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+main.js
+*.js.map
+
+# OS files
+.DS_Store
+
+# Test coverage
+coverage/
+
+# Vault personal dirs - not for version control
+.claude/memory/sessions/
+.claude/memory/reflections/
+.claude/sessions/
+.claude/agent-memory/
+.claude/task-logs/
+.claude/swarm-runs/
+.claude/backups/
+.claude/dream.lock
