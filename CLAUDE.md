@@ -71,3 +71,28 @@ Tests mirror `src/` structure in `tests/unit/` and `tests/integration/`.
   - use Obsidian's notification system if user should be notified
   - use `console.log` for debugging, but remove it before committing
 - Generated docs/test scripts go in `dev/`.
+
+## Chimera Nexus Extensions
+
+This repository is a fork of Claudian with Chimera Nexus extensions.
+
+### 3-Zone Architecture
+- `src/` -- Claudian upstream code (minimal patches, tracked in patches/)
+- `src/chimera/` -- Chimera modules (memory, utils, bridge)
+- `src/chimera/bridge/` -- Boundary layer connecting both zones
+
+### Chimera Modules
+- `chimera/memory/memory-injector.ts` -- Builds memory context for system prompt
+- `chimera/memory/memory-extractor.ts` -- Extracts signals from conversations
+- `chimera/memory/session-summarizer.ts` -- Creates compressed session summaries
+- `chimera/bridge/chimera-manager.ts` -- Central coordinator
+- `chimera/bridge/settings-bridge.ts` -- Adds settings to Claudian UI
+- `chimera/types.ts` -- Memory-specific type definitions
+- `chimera/utils/frontmatter.ts` -- YAML frontmatter parser
+- `chimera/utils/token-counter.ts` -- Token estimation
+
+### Coding Conventions (Chimera additions)
+- All Chimera code in `src/chimera/` -- never import Claudian internals directly
+- Bridge files are the ONLY place that imports from both zones
+- Patches to Claudian code are tracked in `patches/` with documentation
+- Every patch has a `// CHIMERA PATCH:` comment

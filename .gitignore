@@ -92,3 +92,6 @@ dev
 
 .claude/
 .codex/
+
+# npm cache folder (Windows)
+%USERPROFILE%/
