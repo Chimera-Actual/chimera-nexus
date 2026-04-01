@@ -10,6 +10,7 @@ import type ClaudianPlugin from '../../main';
 import { findNodeExecutable, formatContextLimit, getCustomModelIds, getEnhancedPath, getModelsFromEnvironment, parseContextLimit, parseEnvironmentVariables } from '../../utils/env';
 import { expandHomePath } from '../../utils/path';
 import { ClaudianView } from '../chat/ClaudianView';
+import { renderChimeraSettings } from '../../chimera/bridge/settings-bridge';  // CHIMERA PATCH
 import { buildNavMappingText, parseNavMappings } from './keyboardNavigation';
 import { AgentSettings } from './ui/AgentSettings';
 import { EnvSnippetManager } from './ui/EnvSnippetManager';
@@ -723,6 +724,9 @@ export class ClaudianSettingTab extends PluginSettingTab {
         text.inputEl.style.borderColor = 'var(--text-error)';
       }
     });
+
+    // CHIMERA PATCH: Chimera Nexus memory settings
+    renderChimeraSettings(containerEl, this.plugin);
   }
 
   private renderContextLimitsSection(): void {
