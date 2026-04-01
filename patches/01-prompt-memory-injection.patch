@@ -1,0 +1,23 @@
+diff --git a/src/core/prompts/mainAgent.ts b/src/core/prompts/mainAgent.ts
+index a446923..ee8de3a 100644
+--- a/src/core/prompts/mainAgent.ts
++++ b/src/core/prompts/mainAgent.ts
+@@ -14,6 +14,7 @@ export interface SystemPromptSettings {
+   allowExternalAccess?: boolean;
+   vaultPath?: string;
+   userName?: string;
++  memoryContext?: string;  // CHIMERA PATCH: vault memory context injection
+ }
+ 
+ function getPathRules(vaultPath?: string, allowExternalAccess: boolean = false): string {
+@@ -354,5 +355,10 @@ export function buildSystemPrompt(settings: SystemPromptSettings = {}): string {
+     prompt += '\n\n## Custom Instructions\n\n' + settings.customPrompt.trim();
+   }
+ 
++  // CHIMERA PATCH: inject vault memory context
++  if (settings.memoryContext?.trim()) {
++    prompt += '\n\n' + settings.memoryContext.trim();
++  }
++
+   return prompt;
+ }

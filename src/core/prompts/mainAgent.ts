@@ -14,6 +14,7 @@ export interface SystemPromptSettings {
   allowExternalAccess?: boolean;
   vaultPath?: string;
   userName?: string;
+  memoryContext?: string;  // CHIMERA PATCH: vault memory context injection
 }
 
 function getPathRules(vaultPath?: string, allowExternalAccess: boolean = false): string {
@@ -352,6 +353,11 @@ export function buildSystemPrompt(settings: SystemPromptSettings = {}): string {
 
   if (settings.customPrompt?.trim()) {
     prompt += '\n\n## Custom Instructions\n\n' + settings.customPrompt.trim();
+  }
+
+  // CHIMERA PATCH: inject vault memory context
+  if (settings.memoryContext?.trim()) {
+    prompt += '\n\n' + settings.memoryContext.trim();
   }
 
   return prompt;
