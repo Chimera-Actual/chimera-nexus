@@ -180,7 +180,7 @@ describe('ClaudianService', () => {
       // Mock startPersistentQuery to simulate real side effects (subprocess boundary)
       startPersistentQuerySpy.mockImplementation(async (vaultPath: string, cliPath: string, _sessionId?: string, externalContextPaths?: string[]) => {
         (service as any).persistentQuery = { interrupt: jest.fn().mockResolvedValue(undefined) };
-        (service as any).currentConfig = (service as any).buildPersistentQueryConfig(vaultPath, cliPath, externalContextPaths);
+        (service as any).currentConfig = await (service as any).buildPersistentQueryConfig(vaultPath, cliPath, externalContextPaths);
       });
 
       // First call starts the query
@@ -200,7 +200,7 @@ describe('ClaudianService', () => {
       // Mock startPersistentQuery to simulate real side effects (subprocess boundary)
       startPersistentQuerySpy.mockImplementation(async (vaultPath: string, cliPath: string, _sessionId?: string, externalContextPaths?: string[]) => {
         (service as any).persistentQuery = { interrupt: jest.fn().mockResolvedValue(undefined) };
-        (service as any).currentConfig = (service as any).buildPersistentQueryConfig(vaultPath, cliPath, externalContextPaths);
+        (service as any).currentConfig = await (service as any).buildPersistentQueryConfig(vaultPath, cliPath, externalContextPaths);
       });
 
       // First call starts with no external paths (Case 1: not running)
@@ -239,7 +239,7 @@ describe('ClaudianService', () => {
       // Mock startPersistentQuery to simulate real side effects (subprocess boundary)
       startPersistentQuerySpy.mockImplementation(async (vaultPath: string, cliPath: string, _sessionId?: string, externalContextPaths?: string[]) => {
         (service as any).persistentQuery = { interrupt: jest.fn().mockResolvedValue(undefined) };
-        (service as any).currentConfig = (service as any).buildPersistentQueryConfig(vaultPath, cliPath, externalContextPaths);
+        (service as any).currentConfig = await (service as any).buildPersistentQueryConfig(vaultPath, cliPath, externalContextPaths);
       });
 
       // Start the query first
@@ -280,7 +280,7 @@ describe('ClaudianService', () => {
       // Mock startPersistentQuery to simulate real side effects (subprocess boundary)
       startPersistentQuerySpy.mockImplementation(async (vaultPath: string, cliPath: string, _sessionId?: string, externalContextPaths?: string[]) => {
         (service as any).persistentQuery = { interrupt: jest.fn().mockResolvedValue(undefined) };
-        (service as any).currentConfig = (service as any).buildPersistentQueryConfig(vaultPath, cliPath, externalContextPaths);
+        (service as any).currentConfig = await (service as any).buildPersistentQueryConfig(vaultPath, cliPath, externalContextPaths);
       });
 
       // Start the query first (Case 1: not running)
@@ -1300,7 +1300,7 @@ describe('ClaudianService', () => {
         };
         (service as any).persistentQuery = mockPersistentQuery;
         (service as any).vaultPath = vaultPath;
-        (service as any).currentConfig = (service as any).buildPersistentQueryConfig(vaultPath, cliPath, externalContextPaths);
+        (service as any).currentConfig = await (service as any).buildPersistentQueryConfig(vaultPath, cliPath, externalContextPaths);
       });
 
       await service.ensureReady({ externalContextPaths: [] });
@@ -1467,7 +1467,7 @@ describe('ClaudianService', () => {
         const messageChannel = new MessageChannel();
         (service as any).messageChannel = messageChannel;
         (service as any).persistentQuery = sdkMock.query({ prompt: messageChannel, options: { cwd: vaultPath, pathToClaudeCodeExecutable: cliPath } as any });
-        (service as any).currentConfig = (service as any).buildPersistentQueryConfig(vaultPath, cliPath, []);
+        (service as any).currentConfig = await (service as any).buildPersistentQueryConfig(vaultPath, cliPath, []);
         (service as any).startResponseConsumer();
       });
 
