@@ -183,3 +183,52 @@
   min-height: 20px;
   line-height: 1.4;
 }
+
+/* Completion card */
+.chimera-completion-card {
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 8px;
+  padding: 12px;
+  margin: 8px 0;
+  background: var(--background-secondary);
+}
+
+.chimera-completion-card-header {
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.chimera-completion-card-body {
+  font-size: 0.9em;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+
+.chimera-completion-card-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.chimera-completion-card-actions button {
+  font-size: 0.85em;
+}
+
+/* System message */
+.chimera-system-message {
+  text-align: center;
+  color: var(--text-faint);
+  font-size: 0.85em;
+  padding: 4px 0;
+}
+
+/* Agent status spans */
+.chimera-status-agent {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.chimera-status-agent.is-running { color: var(--text-accent); }
+.chimera-status-agent.is-completed { color: var(--text-success, #4caf50); }
+.chimera-status-agent.is-failed { color: var(--text-error, #f44336); }
+.chimera-status-agent.is-queued { color: var(--text-muted); }
