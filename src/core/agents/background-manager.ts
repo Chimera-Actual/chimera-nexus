@@ -11,6 +11,7 @@ import { SdkWrapper } from "../runtime/sdk-wrapper";
 import { MemoryInjector } from "../memory/memory-injector";
 import { SessionManager } from "../runtime/session-manager";
 import { resolveTemplate } from "../runtime/template-resolver";
+import { AgentLoader } from "../claude-compat/agent-loader";
 
 // ---------------------------------------------------------------------------
 // Internal types
@@ -184,6 +185,30 @@ export class BackgroundManager {
    */
   getResult(id: string): string | undefined {
     return this.jobs.get(id)?.result;
+  }
+
+  /**
+   * Resolves an agent by name from the vault's `.claude/agents/` directory,
+   * then submits it for background execution.
+   *
+   * This is a convenience wrapper around {@link submit} that removes the need
+   * for callers to manage agent loading themselves.
+   *
+   * @param agentName - The name of the agent to resolve and submit.
+   * @param task - The task prompt to send to the agent.
+   * @returns A unique job ID that can be used to poll status or cancel the job.
+   * @throws {Error} If no agent with the given name exists in the vault.
+   */
+  async submitByName(agentName: string, task: string): Promise<string> {
+    const loader = new AgentLoader(this.vault);
+    const agents = await loader.loadAgents();
+    const agent = agents.find((a) => a.name === agentName);
+    if (!agent) {
+      throw new Error(
+        `[BackgroundManager] No agent found with name "${agentName}"`
+      );
+    }
+    return this.submit(agent, task);
   }
 
   // ---------------------------------------------------------------------------
