@@ -141,6 +141,91 @@ export interface Session {
 }
 
 // ---------------------------------------------------------------------------
+// Scheduled / Loop task types
+// ---------------------------------------------------------------------------
+
+/**
+ * A task that fires on a cron schedule.
+ */
+export interface ScheduledTask {
+  /** Unique identifier. */
+  id: string;
+  /** Display name. */
+  name: string;
+  /** Whether the task is currently active. */
+  enabled: boolean;
+  /** Cron expression (e.g. `"0 9 * * 1-5"`). */
+  schedule: string;
+  /** Human-readable description of the schedule (e.g. `"Weekdays at 9 am"`). */
+  scheduleHuman: string;
+  /** Model identifier to use when running the task. */
+  model: string;
+  /** Agent to invoke. */
+  agent: string;
+  /** Permission mode for this task. */
+  permissionMode: PermissionMode;
+  /** Maximum wall-clock seconds before the task is killed. */
+  maxDurationSeconds: number;
+  /** ISO-8601 creation timestamp. */
+  created: string;
+  /** ISO-8601 timestamp of the last run, or empty string if never run. */
+  lastRun: string;
+  /** ISO-8601 timestamp of the next scheduled run. */
+  nextRun: string;
+  /** Prompt text sent to the agent. */
+  prompt: string;
+  /** Tool names the agent is allowed to use. */
+  toolAccess: string[];
+  /** Arbitrary tags. */
+  tags: string[];
+}
+
+/**
+ * A task that fires repeatedly on a fixed millisecond interval.
+ */
+export interface LoopTask {
+  /** Unique identifier. */
+  id: string;
+  /** Repeat interval in milliseconds. */
+  interval: number;
+  /** Prompt sent to the agent on each iteration. */
+  prompt: string;
+  /** Agent to invoke. */
+  agent: string;
+  /** ISO-8601 creation timestamp. */
+  createdAt: string;
+  /** ISO-8601 expiry timestamp; the loop stops after this time. */
+  expiresAt: string;
+  /** ISO-8601 timestamp of the last run, or empty string if never run. */
+  lastRun: string;
+  /** Number of times the task has been executed so far. */
+  runCount: number;
+}
+
+// ---------------------------------------------------------------------------
+// Tool permission types
+// ---------------------------------------------------------------------------
+
+/**
+ * Merged Claude settings that Chimera passes to the CLI / SDK at runtime.
+ */
+export interface ResolvedClaudeSettings {
+  /** Tool permission lists. */
+  permissions: {
+    /** Tools the agent may always use without asking. */
+    allow: string[];
+    /** Tools the agent may never use. */
+    deny: string[];
+    /** Tools the agent must ask about before use. */
+    ask: string[];
+  };
+  /** Environment variables injected into the Claude process. */
+  env: Record<string, string>;
+  /** MCP server configurations (shape is SDK-defined). */
+  mcpServers: Record<string, unknown>;
+}
+
+// ---------------------------------------------------------------------------
 // Chimera memory settings
 // ---------------------------------------------------------------------------
 
