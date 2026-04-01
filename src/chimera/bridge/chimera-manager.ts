@@ -36,6 +36,14 @@ export class ChimeraManager {
   private settings: ChimeraMemorySettings;
   private vault: Vault;
 
+  // Memory context TTL cache (Fix 1)
+  private cachedMemoryContext: string = "";
+  private memoryContextCacheTime = 0;
+  private static MEMORY_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+  // Extraction debounce timers (Fix 2)
+  private extractionDebounceTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
   constructor(vault: Vault, settings?: Partial<ChimeraMemorySettings>) {
     this.vault = vault;
     this.settings = { ...DEFAULT_CHIMERA_SETTINGS, ...settings };
@@ -69,62 +77,96 @@ export class ChimeraManager {
       console.warn("[Chimera] Failed to check missed runs:", err);
     }
 
-    // Start periodic dream cycle check
+    // Start periodic dream cycle check (Fix 3: minimum 15 min, skip during active extractions)
     const intervalHours = this.settings.dreamIntervalHours ?? 1;
     if (this.settings.dreamEnabled && intervalHours > 0) {
+      const intervalMs = Math.max(intervalHours * 60 * 60 * 1000, 15 * 60 * 1000);
       this.dreamCheckInterval = window.setInterval(async () => {
+        // Don't run dream during active extraction operations
+        if (this.extractionDebounceTimers.size > 0) return;
         try {
           if (await this.dreamRunner.canRun()) {
             console.log("[Chimera] Starting dream cycle...");
             await this.dreamRunner.run();
+            this.invalidateMemoryCache();
             console.log("[Chimera] Dream cycle complete");
           }
         } catch (err) {
           console.warn("[Chimera] Dream cycle failed:", err);
         }
-      }, intervalHours * 60 * 60 * 1000);
+      }, intervalMs);
     }
   }
 
-  /** Returns the memory context string to inject into the system prompt. */
+  /** Returns the memory context string to inject into the system prompt (TTL-cached). */
   async getActiveMemoryContext(): Promise<string> {
     if (!this.settings.memoryEnabled) return "";
+
+    const now = Date.now();
+    if (this.cachedMemoryContext && (now - this.memoryContextCacheTime) < ChimeraManager.MEMORY_CACHE_TTL) {
+      return this.cachedMemoryContext;
+    }
+
     try {
-      return await this.memoryInjector.buildMemoryContext();
+      this.cachedMemoryContext = await this.memoryInjector.buildMemoryContext();
+      this.memoryContextCacheTime = now;
+      return this.cachedMemoryContext;
     } catch (err) {
       console.warn("[Chimera] Failed to build memory context:", err);
-      return "";
+      return this.cachedMemoryContext; // Return stale cache on error
     }
   }
 
-  /** Extracts memory signals from a completed conversation. */
+  /** Force refresh the memory context cache (call after memory writes). */
+  invalidateMemoryCache(): void {
+    this.memoryContextCacheTime = 0;
+  }
+
+  /** Extracts memory signals from a completed conversation (debounced, only last 20 messages). */
   async extractAndStoreMemory(ctx: ConversationContext): Promise<void> {
     if (!this.settings.autoMemory) return;
-    try {
-      const session: Session = {
-        sessionId: ctx.conversationId,
-        agent: "",
-        title: "",
-        created: new Date(ctx.timestamp).toISOString(),
-        updated: new Date().toISOString(),
-        model: "",
-        tokensUsed: 0,
-        messageCount: ctx.messages.length,
-        status: "completed",
-        outputFiles: [],
-        tags: [],
-        messages: ctx.messages.map(m => ({
-          role: m.role as "user" | "assistant",
-          content: typeof m.content === "string" ? m.content : JSON.stringify(m.content),
-          timestamp: new Date().toISOString(),
-        })),
-      };
-      await this.memoryExtractor.extractFromSession(session);
-      const summary = await this.sessionSummarizer.summarize(session);
-      await this.sessionSummarizer.saveSummary(this.vault, summary);
-    } catch (err) {
-      console.warn("[Chimera] Memory extraction failed:", err);
-    }
+
+    // Debounce: only extract 10 seconds after the last save for this conversation
+    const existing = this.extractionDebounceTimers.get(ctx.conversationId);
+    if (existing) clearTimeout(existing);
+
+    this.extractionDebounceTimers.set(ctx.conversationId, setTimeout(async () => {
+      this.extractionDebounceTimers.delete(ctx.conversationId);
+      try {
+        // Only process the last 20 messages to avoid scanning huge conversations
+        const recentMessages = ctx.messages.slice(-20);
+        const session: Session = {
+          sessionId: ctx.conversationId,
+          agent: "",
+          title: "",
+          created: new Date(ctx.timestamp).toISOString(),
+          updated: new Date().toISOString(),
+          model: "",
+          tokensUsed: 0,
+          messageCount: recentMessages.length,
+          status: "completed",
+          outputFiles: [],
+          tags: [],
+          messages: recentMessages.map(m => ({
+            role: m.role as "user" | "assistant",
+            content: typeof m.content === "string" ? m.content : JSON.stringify(m.content),
+            timestamp: new Date().toISOString(),
+          })),
+        };
+        await this.memoryExtractor.extractFromSession(session);
+
+        // Summarize less frequently -- only if 10+ messages in the full conversation
+        if (ctx.messages.length >= 10) {
+          const summary = await this.sessionSummarizer.summarize(session);
+          await this.sessionSummarizer.saveSummary(this.vault, summary);
+        }
+
+        // Invalidate memory cache since we just wrote new memories
+        this.invalidateMemoryCache();
+      } catch (err) {
+        console.warn("[Chimera] Memory extraction failed:", err);
+      }
+    }, 10000)); // 10 second debounce
   }
 
   /** Updates settings at runtime (from settings UI). */
@@ -163,6 +205,11 @@ export class ChimeraManager {
       clearInterval(this.dreamCheckInterval);
       this.dreamCheckInterval = null;
     }
+    // Clear any pending extraction debounce timers (Fix 5)
+    for (const timer of this.extractionDebounceTimers.values()) {
+      clearTimeout(timer);
+    }
+    this.extractionDebounceTimers.clear();
   }
 
   /** Ensures the .claude/memory/ directory structure exists. */

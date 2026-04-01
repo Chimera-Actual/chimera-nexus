@@ -460,8 +460,18 @@ export class ClaudianService {
     const customEnv = parseEnvironmentVariables(this.plugin.getActiveEnvironmentVariables());
     const enhancedPath = getEnhancedPath(customEnv.PATH, cliPath);
 
-    // CHIMERA PATCH: inject memory context
-    const memoryContext = await (this.plugin as any).chimeraManager?.getActiveMemoryContext() ?? "";
+    // CHIMERA PATCH: inject memory context (with 3s timeout to prevent blocking)
+    let memoryContext = "";
+    try {
+      const chimeraManager = (this.plugin as any).chimeraManager;
+      if (chimeraManager) {
+        const contextPromise = chimeraManager.getActiveMemoryContext();
+        const timeoutPromise = new Promise<string>((resolve) => setTimeout(() => resolve(""), 3000));
+        memoryContext = await Promise.race([contextPromise, timeoutPromise]);
+      }
+    } catch {
+      // Memory context is optional, don't block queries
+    }
 
     return {
       vaultPath,
