@@ -5,7 +5,7 @@
  * providing standalone functions for the most common cron queries.
  */
 
-// TODO: Not yet implemented -- delegate to parseCron once implemented.
+import { parseCron } from "../core/scheduler/cron-parser";
 
 /**
  * Returns `true` if `date` matches the 5-field cron `expression`.
@@ -15,20 +15,17 @@
  * @returns `true` if the date satisfies the expression.
  */
 export function matchesCron(expression: string, date: Date): boolean {
-  void expression;
-  void date;
-  throw new Error("Not implemented");
+  return parseCron(expression).matches(date);
 }
 
 /**
- * Returns the next date after `after` on which the cron `expression` fires.
+ * Returns the next date strictly after `after` on which the cron `expression`
+ * fires.
  *
  * @param expression - A standard 5-field cron string.
  * @param after - The reference date; the result will be strictly after this.
  * @returns The next matching date.
  */
 export function nextCronRun(expression: string, after: Date): Date {
-  void expression;
-  void after;
-  throw new Error("Not implemented");
+  return parseCron(expression).nextRun(after);
 }
