@@ -24,6 +24,7 @@ function makeSettings(
     autoMemory: false,
     userName: "test",
     excludedTags: [],
+    model: "sonnet",
     ...overrides,
   };
 }

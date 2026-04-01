@@ -142,14 +142,11 @@ export class SdkWrapper {
     let child: ChildProcess;
 
     try {
-      child = spawn(this.settings.cliPath, [
-        "--output-format",
-        "stream-json",
-        "-p",
-        prompt,
-        "--system-prompt",
-        systemPrompt,
-      ], {
+      const args = ["--output-format", "stream-json", "-p", prompt, "--system-prompt", systemPrompt];
+      if (this.settings.model) {
+        args.push("--model", this.settings.model);
+      }
+      child = spawn(this.settings.cliPath, args, {
         shell: true, // Required for PATH resolution on Windows
       });
     } catch (err) {
@@ -267,8 +264,15 @@ export class SdkWrapper {
       const { default: Anthropic } = await import("@anthropic-ai/sdk");
       const client = new Anthropic({ apiKey: this.settings.apiKey });
 
+      const modelMap: Record<string, string> = {
+        haiku: "claude-haiku-4-5-20251001",
+        sonnet: "claude-sonnet-4-20250514",
+        opus: "claude-opus-4-20250514",
+      };
+      const modelId = modelMap[this.settings.model] || "claude-sonnet-4-20250514";
+
       const stream = client.messages.stream({
-        model: "claude-sonnet-4-20250514",
+        model: modelId,
         max_tokens: 4096,
         system: systemPrompt,
         messages: [{ role: "user", content: prompt }],

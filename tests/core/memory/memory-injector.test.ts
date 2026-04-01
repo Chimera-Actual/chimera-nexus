@@ -52,6 +52,7 @@ function makeSettings(overrides: Partial<ChimeraSettings> = {}): ChimeraSettings
     autoMemory: false,
     userName: "Tester",
     excludedTags: [],
+    model: "sonnet",
     ...overrides,
   };
 }

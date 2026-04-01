@@ -527,6 +527,8 @@ export interface ChimeraSettings {
    * indexing.
    */
   excludedTags: string[];
+  /** Selected Claude model for conversations. */
+  model: string;
 }
 
 /**
@@ -545,6 +547,7 @@ export const DEFAULT_SETTINGS: ChimeraSettings = {
   autoMemory: true,
   userName: "",
   excludedTags: [],
+  model: "sonnet",
 };
 
 // ---------------------------------------------------------------------------
