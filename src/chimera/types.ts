@@ -243,6 +243,8 @@ export interface ChimeraMemorySettings {
   autoMemory: boolean;
   /** Whether the Dream background consolidation process is enabled. */
   dreamEnabled: boolean;
+  /** How often (in hours) to check whether a dream cycle should run. 0 = disabled. */
+  dreamIntervalHours: number;
 }
 
 /**
@@ -254,6 +256,7 @@ export const DEFAULT_CHIMERA_SETTINGS: ChimeraMemorySettings = {
   memoryTreeBudget: 500,
   autoMemory: true,
   dreamEnabled: true,
+  dreamIntervalHours: 1,
 };
 
 // ---------------------------------------------------------------------------

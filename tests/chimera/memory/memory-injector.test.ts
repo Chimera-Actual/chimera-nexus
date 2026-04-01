@@ -45,6 +45,7 @@ function makeSettings(overrides: Partial<ChimeraMemorySettings> = {}): ChimeraMe
     memoryTreeBudget: 500,
     autoMemory: false,
     dreamEnabled: false,
+    dreamIntervalHours: 1,
     ...overrides,
   };
 }

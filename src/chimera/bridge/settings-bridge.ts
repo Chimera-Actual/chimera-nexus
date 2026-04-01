@@ -87,6 +87,42 @@ export function renderChimeraSettings(containerEl: HTMLElement, plugin: any): vo
       })
     );
 
+  // Scheduler section
+  new Setting(containerEl).setName("Scheduling").setHeading();
+
+  containerEl.createEl("p", {
+    cls: "setting-item-description",
+    text: "Configure persistent tasks and session loops. Tasks run on cron schedules and survive restarts.",
+  });
+
+  new Setting(containerEl)
+    .setName("View Scheduled Tasks")
+    .setDesc("Tasks are defined as markdown files in .claude/tasks/")
+    .addButton((btn: any) => {
+      btn.setButtonText("Open Tasks Folder");
+      btn.onClick(() => {
+        const tasksPath = ".claude/tasks";
+        plugin.app.workspace.openLinkText(tasksPath, "", false);
+      });
+    });
+
+  new Setting(containerEl)
+    .setName("Dream Cycle Interval")
+    .setDesc("How often to check if memory consolidation should run (hours). Set 0 to disable.")
+    .addText((text: any) => {
+      text
+        .setPlaceholder("1")
+        .setValue(String(chimeraSettings.dreamIntervalHours ?? 1))
+        .onChange(async (value: string) => {
+          const num = parseInt(value, 10);
+          if (!isNaN(num) && num >= 0) {
+            if (!plugin.settings.chimera) plugin.settings.chimera = {};
+            plugin.settings.chimera.dreamIntervalHours = num;
+            await plugin.saveSettings();
+          }
+        });
+    });
+
   const vaultPath = (plugin.app.vault.adapter as any).basePath || "";
   renderSkillMarketplace(containerEl, vaultPath);
 }
