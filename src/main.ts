@@ -10,6 +10,15 @@ import { Notice, Plugin, normalizePath } from "obsidian";
 import { ChimeraSettings, DEFAULT_SETTINGS } from "./core/types";
 import { ChimeraSettingsTab } from "./features/settings/settings-tab";
 import { ChimeraChatView, VIEW_TYPE_CHIMERA_CHAT } from "./features/chat/chat-view";
+import { SdkWrapper } from "./core/runtime/sdk-wrapper";
+import { MemoryInjector } from "./core/memory/memory-injector";
+import { MemoryExtractor } from "./core/memory/memory-extractor";
+import { SessionSummarizer } from "./core/memory/session-summarizer";
+import { SessionStore } from "./features/sessions/session-store";
+import { SessionIndex } from "./features/sessions/session-index";
+import { AgentLoader } from "./core/claude-compat/agent-loader";
+import { SettingsLoader } from "./core/claude-compat/settings-loader";
+import { HookManager } from "./core/claude-compat/hook-manager";
 
 // ---------------------------------------------------------------------------
 // Plugin class
@@ -25,6 +34,33 @@ export default class ChimeraNexusPlugin extends Plugin {
   /** Resolved plugin settings, loaded from `data.json` on startup. */
   settings!: ChimeraSettings;
 
+  /** Wrapper around the Claude CLI and Anthropic SDK for sending messages. */
+  sdkWrapper!: SdkWrapper;
+
+  /** Builds the system prompt context from vault memory files. */
+  memoryInjector!: MemoryInjector;
+
+  /** Extracts memory signals from completed session transcripts. */
+  memoryExtractor!: MemoryExtractor;
+
+  /** Produces condensed summaries from completed sessions. */
+  sessionSummarizer!: SessionSummarizer;
+
+  /** Reads and writes full session records as vault notes. */
+  sessionStore!: SessionStore;
+
+  /** Manages the lightweight session index cache. */
+  sessionIndex!: SessionIndex;
+
+  /** Discovers agent definitions from the vault agents folder. */
+  agentLoader!: AgentLoader;
+
+  /** Loads and merges Claude settings from vault and global config files. */
+  settingsLoader!: SettingsLoader;
+
+  /** Registers and fires lifecycle hook handlers. */
+  hookManager!: HookManager;
+
   // -------------------------------------------------------------------------
   // Lifecycle
   // -------------------------------------------------------------------------
@@ -34,14 +70,28 @@ export default class ChimeraNexusPlugin extends Plugin {
    *
    * Order of operations:
    * 1. Load persisted settings.
-   * 2. Register the sidebar chat view.
-   * 3. Register the ribbon icon.
-   * 4. Register the command palette command.
-   * 5. Register the settings tab.
-   * 6. Initialise vault folder structure.
+   * 2. Initialise core modules.
+   * 3. Register the sidebar chat view.
+   * 4. Register the ribbon icon.
+   * 5. Register the command palette command.
+   * 6. Register the settings tab.
+   * 7. Initialise vault folder structure.
+   * 8. Load Claude Code settings and hooks.
+   * 9. Rebuild the session index.
    */
   async onload(): Promise<void> {
     await this.loadSettings();
+
+    // Initialise core modules.
+    this.sdkWrapper = new SdkWrapper(this.settings);
+    this.memoryInjector = new MemoryInjector(this.app.vault, this.settings);
+    this.memoryExtractor = new MemoryExtractor(this.app.vault);
+    this.sessionSummarizer = new SessionSummarizer();
+    this.sessionStore = new SessionStore(this.app.vault);
+    this.sessionIndex = new SessionIndex(this.app.vault);
+    this.agentLoader = new AgentLoader(this.app.vault);
+    this.settingsLoader = new SettingsLoader(this.app.vault);
+    this.hookManager = new HookManager();
 
     // Register the sidebar view type.
     this.registerView(
@@ -68,6 +118,22 @@ export default class ChimeraNexusPlugin extends Plugin {
 
     // Ensure the vault folder structure exists.
     await this.initVaultStructure();
+
+    // Load Claude Code settings and initialize hooks.
+    try {
+      const resolvedSettings = await this.settingsLoader.loadSettings();
+      this.hookManager.loadHooks(resolvedSettings.hooks);
+    } catch (err) {
+      console.warn("Failed to load Claude Code settings:", err);
+    }
+
+    // Rebuild session index on startup.
+    try {
+      await this.sessionIndex.load();
+      await this.sessionIndex.rebuildIndex();
+    } catch (err) {
+      console.warn("Failed to rebuild session index:", err);
+    }
 
     console.log("Chimera Nexus loaded");
   }

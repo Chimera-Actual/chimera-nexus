@@ -1,13 +1,32 @@
 /**
  * @file Obsidian sidebar chat view for Chimera Nexus.
  *
- * Renders the full chat UI inside Obsidian's right sidebar leaf. The view is
- * a functional shell: messages are displayed locally and a placeholder
- * "Thinking..." response is shown after each user message. Real agent
- * integration is wired in later tasks.
+ * Renders the full chat UI inside Obsidian's right sidebar leaf. The view
+ * handles agent switching, @mention detection, streaming SDK responses, hook
+ * execution, and post-session processing (memory extraction and summarization).
  */
 
-import { ItemView, WorkspaceLeaf } from "obsidian";
+import { ItemView, Notice, WorkspaceLeaf } from "obsidian";
+
+import {
+  ChimeraSettings,
+  AgentDefinition,
+  Session,
+  ConversationMessage,
+  HookEvent,
+  MentionResult,
+  SessionIndexEntry,
+} from "../../core/types";
+import { SdkWrapper, StreamCallbacks } from "../../core/runtime/sdk-wrapper";
+import { MemoryInjector } from "../../core/memory/memory-injector";
+import { MemoryExtractor } from "../../core/memory/memory-extractor";
+import { SessionSummarizer } from "../../core/memory/session-summarizer";
+import { SessionStore } from "../../features/sessions/session-store";
+import { SessionIndex } from "../../features/sessions/session-index";
+import { AgentLoader } from "../../core/claude-compat/agent-loader";
+import { HookManager } from "../../core/claude-compat/hook-manager";
+import { detectMention } from "./mention-detector";
+import { AgentSelector } from "./agent-selector";
 
 // ---------------------------------------------------------------------------
 // View type constant
@@ -21,7 +40,28 @@ export const VIEW_TYPE_CHIMERA_CHAT = "chimera-nexus-chat";
 // ---------------------------------------------------------------------------
 
 interface ChimeraNexusPluginRef {
-  // Reserved for future wiring to settings / SDK / session store.
+  settings: ChimeraSettings;
+  sdkWrapper: SdkWrapper;
+  memoryInjector: MemoryInjector;
+  memoryExtractor: MemoryExtractor;
+  sessionSummarizer: SessionSummarizer;
+  sessionStore: SessionStore;
+  sessionIndex: SessionIndex;
+  agentLoader: AgentLoader;
+  hookManager: HookManager;
+}
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+/** Generates a pseudo-random UUID v4 string. */
+function generateUUID(): string {
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === "x" ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -32,14 +72,14 @@ interface ChimeraNexusPluginRef {
  * Obsidian sidebar view that renders the Chimera Nexus chat interface.
  *
  * Lifecycle:
- * - {@link onOpen} builds the full DOM layout and attaches event listeners.
- * - {@link onClose} tears down any listeners added outside of Obsidian's own
- *   event system.
+ * - {@link onOpen} builds the full DOM layout, loads agents and sessions,
+ *   and attaches event listeners.
+ * - {@link onClose} runs post-session processing (save, memory extraction,
+ *   summarization) before tearing down.
  *
  * Public helper surface:
  * - {@link addMessage} appends a labelled message bubble to the chat area.
- * - {@link handleSend} reads the textarea, posts the user message, and
- *   enqueues a placeholder assistant reply.
+ * - {@link handleSend} dispatches user messages to the SDK with streaming.
  * - {@link updateStatus} updates the status bar text.
  */
 export class ChimeraChatView extends ItemView {
@@ -54,15 +94,26 @@ export class ChimeraChatView extends ItemView {
   private statusBarEl!: HTMLElement;
 
   // -------------------------------------------------------------------------
+  // State
+  // -------------------------------------------------------------------------
+
+  private plugin: ChimeraNexusPluginRef;
+  private currentSession: Session | null = null;
+  private currentAgent: AgentDefinition | null = null;
+  private agents: AgentDefinition[] = [];
+  private agentSelectorComponent: AgentSelector | null = null;
+  private isStreaming = false;
+
+  // -------------------------------------------------------------------------
   // Constructor
   // -------------------------------------------------------------------------
 
   constructor(
     leaf: WorkspaceLeaf,
-    // Plugin reference retained for future SDK / settings wiring.
-    _plugin: ChimeraNexusPluginRef,
+    plugin: ChimeraNexusPluginRef,
   ) {
     super(leaf);
+    this.plugin = plugin;
   }
 
   // -------------------------------------------------------------------------
@@ -91,9 +142,8 @@ export class ChimeraChatView extends ItemView {
   /**
    * Called by Obsidian when the leaf is opened.
    *
-   * Builds the complete chat UI layout and attaches all event listeners.
-   * All DOM nodes are created via the standard `createElement` / `appendChild`
-   * API to stay framework-agnostic and match Obsidian's own patterns.
+   * Builds the complete chat UI layout, loads agents and session index entries,
+   * wires up the AgentSelector component, and attaches all event listeners.
    */
   async onOpen(): Promise<void> {
     const container = this.containerEl;
@@ -166,18 +216,60 @@ export class ChimeraChatView extends ItemView {
 
     this.statusBarEl = root.createDiv({ cls: "chimera-status-bar" });
     this.statusBarEl.textContent = "Ready";
+
+    // ------------------------------------------------------------------
+    // 6. Load agents and wire up AgentSelector
+    // ------------------------------------------------------------------
+
+    try {
+      this.agents = await this.plugin.agentLoader.loadAgents();
+    } catch {
+      // Logged internally by AgentLoader.
+    }
+
+    // Replace the manually created select with the AgentSelector component.
+    selectorArea.innerHTML = "";
+    this.agentSelectorComponent = new AgentSelector(
+      selectorArea,
+      this.agents,
+      (agentName) => this.handleAgentChange(agentName),
+      (sessionId) => this.handleSessionResume(sessionId),
+    );
+    this.agentSelectorComponent.render();
+
+    // Load session index entries for the session list.
+    const entries = this.plugin.sessionIndex.getEntries();
+    this.agentSelectorComponent.setSessions(entries);
   }
 
   /**
    * Called by Obsidian when the leaf is closed.
    *
-   * All listeners attached via `addEventListener` directly to DOM nodes owned
-   * by this view are automatically garbage-collected when the DOM is destroyed.
-   * This hook is kept for any future cleanup that requires explicit teardown
-   * (e.g. external subscriptions or timers).
+   * Runs post-session processing if there is an active session with messages:
+   * saves the session, extracts memory signals (if enabled), and creates a
+   * summary note.
    */
   async onClose(): Promise<void> {
-    // No external subscriptions to clean up at this stage.
+    if (this.currentSession && this.currentSession.messages.length > 0) {
+      try {
+        this.currentSession.status = "completed";
+        await this.plugin.sessionStore.saveSession(this.currentSession);
+
+        // Extract memory signals.
+        if (this.plugin.settings.autoMemory) {
+          await this.plugin.memoryExtractor.extractFromSession(this.currentSession);
+        }
+
+        // Create and save a session summary.
+        const summary = await this.plugin.sessionSummarizer.summarize(this.currentSession);
+        await this.plugin.sessionSummarizer.saveSummary(
+          this.app.vault,
+          summary,
+        );
+      } catch (err) {
+        console.warn("Failed post-session processing:", err);
+      }
+    }
   }
 
   // -------------------------------------------------------------------------
@@ -206,25 +298,109 @@ export class ChimeraChatView extends ItemView {
   }
 
   /**
-   * Reads the current textarea value, posts it as a user message, clears the
-   * input, and enqueues a placeholder assistant reply after a short delay.
-   *
-   * When real SDK integration is added this method will be the primary hook
-   * point for dispatching messages to the agent.
+   * Reads the current textarea value, processes @mentions and hooks, then
+   * dispatches the message to the SDK with streaming response callbacks.
    */
-  handleSend(): void {
+  async handleSend(): Promise<void> {
     const text = this.inputEl.value.trim();
-    if (!text) return;
+    if (!text || this.isStreaming) return;
 
-    this.addMessage("user", text);
+    // Check for @mention.
+    const agentNames = this.agents.map((a) => a.name);
+    const mention = detectMention(text, agentNames);
+
+    if (mention) {
+      await this.handleMention(mention);
+      this.inputEl.value = "";
+      return;
+    }
+
+    // Fire UserPromptSubmit hook.
+    const hookResult = await this.plugin.hookManager.fireHook(HookEvent.UserPromptSubmit, text);
+    if (!hookResult.proceed) {
+      this.addMessage("assistant", `Hook blocked: ${hookResult.error || "Operation blocked by hook"}`);
+      return;
+    }
+    const finalText = hookResult.modifiedInput || text;
+
+    // Add user message to UI and session.
+    this.addMessage("user", finalText);
     this.inputEl.value = "";
+    this.isStreaming = true;
     this.updateStatus("Thinking...");
 
-    // Placeholder: simulate an async assistant reply.
-    setTimeout(() => {
-      this.addMessage("assistant", "Thinking...");
-      this.updateStatus("Ready");
-    }, 500);
+    // Track in current session.
+    if (!this.currentSession) {
+      this.startNewSession();
+    }
+    this.currentSession!.messages.push({
+      role: "user",
+      content: finalText,
+      timestamp: new Date().toISOString(),
+    });
+
+    // Build system prompt.
+    let systemPrompt: string;
+    try {
+      systemPrompt = await this.plugin.memoryInjector.buildSystemPromptContext();
+    } catch {
+      systemPrompt = "You are Chimera Nexus, an AI assistant in Obsidian.";
+    }
+
+    // If using a specific agent, prepend agent system prompt.
+    if (this.currentAgent?.systemPrompt) {
+      systemPrompt = this.currentAgent.systemPrompt + "\n\n" + systemPrompt;
+    }
+
+    // Create a placeholder message element for streaming.
+    const assistantMsgEl = this.createStreamingMessage();
+
+    // Send via SDK.
+    let fullResponse = "";
+    this.plugin.sdkWrapper.sendMessage(finalText, systemPrompt, {
+      onChunk: (chunk) => {
+        fullResponse += chunk;
+        this.updateStreamingMessage(assistantMsgEl, fullResponse);
+      },
+      onComplete: async (completeText) => {
+        this.isStreaming = false;
+        this.updateStatus("Ready");
+
+        // Add to session.
+        this.currentSession!.messages.push({
+          role: "assistant",
+          content: completeText,
+          timestamp: new Date().toISOString(),
+        });
+        this.currentSession!.messageCount = this.currentSession!.messages.length;
+        this.currentSession!.updated = new Date().toISOString();
+
+        // Fire Stop hook.
+        await this.plugin.hookManager.fireHook(HookEvent.Stop);
+
+        // Save session.
+        try {
+          await this.plugin.sessionStore.saveSession(this.currentSession!);
+          await this.plugin.sessionIndex.updateSession({
+            sessionId: this.currentSession!.sessionId,
+            agent: this.currentSession!.agent,
+            title: this.currentSession!.title,
+            created: this.currentSession!.created,
+            updated: this.currentSession!.updated,
+            messageCount: this.currentSession!.messageCount,
+            status: this.currentSession!.status,
+            path: `.claude/sessions/${this.currentSession!.agent || "default"}/${this.currentSession!.sessionId}.md`,
+          });
+        } catch (err) {
+          console.warn("Failed to save session:", err);
+        }
+      },
+      onError: (error) => {
+        this.isStreaming = false;
+        this.updateStreamingMessage(assistantMsgEl, `Error: ${error.message}`);
+        this.updateStatus("Error occurred");
+      },
+    });
   }
 
   /**
@@ -234,5 +410,272 @@ export class ChimeraChatView extends ItemView {
    */
   updateStatus(text: string): void {
     this.statusBarEl.textContent = text;
+  }
+
+  // -------------------------------------------------------------------------
+  // Private helpers - session management
+  // -------------------------------------------------------------------------
+
+  /**
+   * Creates a new {@link Session} object with a random ID and sets it as the
+   * current session.
+   *
+   * The agent name is taken from the currently selected agent, or `"default"`
+   * if no agent is selected. The title is derived from the first user message
+   * later during summarization.
+   */
+  private startNewSession(): void {
+    const now = new Date().toISOString();
+    this.currentSession = {
+      sessionId: generateUUID(),
+      agent: this.currentAgent?.name ?? "",
+      title: "",
+      created: now,
+      updated: now,
+      model: "claude-sonnet-4-20250514",
+      tokensUsed: 0,
+      messageCount: 0,
+      status: "active",
+      outputFiles: [],
+      tags: [],
+      messages: [],
+    };
+  }
+
+  // -------------------------------------------------------------------------
+  // Private helpers - streaming UI
+  // -------------------------------------------------------------------------
+
+  /**
+   * Creates a new assistant message div in the messages area with empty content
+   * suitable for progressive streaming updates.
+   *
+   * @returns The content element that should be updated with streaming text.
+   */
+  private createStreamingMessage(): HTMLElement {
+    const msgEl = this.messagesEl.createDiv({
+      cls: "chimera-message is-assistant",
+    });
+
+    const roleLabel = msgEl.createDiv({ cls: "chimera-message-role" });
+    roleLabel.textContent = "Chimera";
+
+    const contentEl = msgEl.createDiv({ cls: "chimera-message-content" });
+    contentEl.textContent = "";
+
+    this.messagesEl.scrollTop = this.messagesEl.scrollHeight;
+    return contentEl;
+  }
+
+  /**
+   * Updates the text content of a streaming message element and scrolls
+   * the messages area to the bottom.
+   *
+   * @param el - The content element returned by {@link createStreamingMessage}.
+   * @param content - The full accumulated response text so far.
+   */
+  private updateStreamingMessage(el: HTMLElement, content: string): void {
+    el.textContent = content;
+    this.messagesEl.scrollTop = this.messagesEl.scrollHeight;
+  }
+
+  // -------------------------------------------------------------------------
+  // Private helpers - agent switching
+  // -------------------------------------------------------------------------
+
+  /**
+   * Handles switching to a different agent.
+   *
+   * If the current session has messages it is paused and saved before the
+   * switch. A new session is started for the selected agent, the messages area
+   * is cleared, and the session list is refreshed.
+   *
+   * @param agentName - Name of the agent to switch to, or empty string for default.
+   */
+  private async handleAgentChange(agentName: string): Promise<void> {
+    // Save current session if it has messages.
+    if (this.currentSession && this.currentSession.messages.length > 0) {
+      try {
+        this.currentSession.status = "paused";
+        this.currentSession.updated = new Date().toISOString();
+        await this.plugin.sessionStore.saveSession(this.currentSession);
+        await this.plugin.sessionIndex.updateSession({
+          sessionId: this.currentSession.sessionId,
+          agent: this.currentSession.agent,
+          title: this.currentSession.title,
+          created: this.currentSession.created,
+          updated: this.currentSession.updated,
+          messageCount: this.currentSession.messageCount,
+          status: this.currentSession.status,
+          path: `.claude/sessions/${this.currentSession.agent || "default"}/${this.currentSession.sessionId}.md`,
+        });
+      } catch (err) {
+        console.warn("Failed to save session during agent switch:", err);
+      }
+    }
+
+    // Find the agent definition by name (or null for default).
+    if (agentName) {
+      this.currentAgent = this.agents.find((a) => a.name === agentName) ?? null;
+    } else {
+      this.currentAgent = null;
+    }
+
+    // Start a new session for the new agent.
+    this.startNewSession();
+
+    // Update session list for the selected agent.
+    if (this.agentSelectorComponent) {
+      const entries = this.plugin.sessionIndex.getEntries(agentName || undefined);
+      this.agentSelectorComponent.setSessions(entries);
+    }
+
+    // Clear messages area and show welcome for new agent.
+    this.messagesEl.innerHTML = "";
+    const agentLabel = this.currentAgent?.name ?? "Default Chimera";
+    const welcomeMsg = this.messagesEl.createDiv({ cls: "chimera-message" });
+    welcomeMsg.textContent = `Switched to ${agentLabel}. Start chatting.`;
+
+    this.updateStatus(`Agent: ${agentLabel}`);
+  }
+
+  // -------------------------------------------------------------------------
+  // Private helpers - session resume
+  // -------------------------------------------------------------------------
+
+  /**
+   * Resumes a previous session by loading it from the store and re-rendering
+   * its messages in the chat area.
+   *
+   * @param sessionId - The UUID of the session to resume.
+   */
+  private async handleSessionResume(sessionId: string): Promise<void> {
+    // Find the session entry from the index.
+    const entries = this.plugin.sessionIndex.getEntries();
+    const entry = entries.find((e) => e.sessionId === sessionId);
+    if (!entry) {
+      new Notice("Session not found in index.");
+      return;
+    }
+
+    try {
+      // Load the full session from the store.
+      const session = await this.plugin.sessionStore.loadSession(entry.path);
+      this.currentSession = session;
+
+      // Set the matching agent.
+      if (session.agent) {
+        this.currentAgent = this.agents.find((a) => a.name === session.agent) ?? null;
+      } else {
+        this.currentAgent = null;
+      }
+
+      // Clear messages area and re-render all messages.
+      this.messagesEl.innerHTML = "";
+      for (const msg of session.messages) {
+        this.addMessage(msg.role, msg.content);
+      }
+
+      this.updateStatus(`Resumed session: ${session.title || session.sessionId.slice(0, 8)}`);
+    } catch (err) {
+      console.warn("Failed to resume session:", err);
+      new Notice("Failed to load session. Check console for details.");
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // Private helpers - @mention handling
+  // -------------------------------------------------------------------------
+
+  /**
+   * Processes an @mention detected in user input.
+   *
+   * For foreground mentions, the agent's system prompt is used and the response
+   * is streamed inline. For background mentions, a placeholder message is shown
+   * (background execution is not yet wired to the background-manager).
+   *
+   * @param mention - The parsed mention result from the mention detector.
+   */
+  private async handleMention(mention: MentionResult): Promise<void> {
+    // Find the agent definition.
+    const agent = this.agents.find((a) => a.name === mention.agentName);
+    if (!agent) {
+      this.addMessage("assistant", `Unknown agent: @${mention.agentName}`);
+      return;
+    }
+
+    if (mention.background) {
+      // Background execution stub.
+      this.addMessage("user", mention.originalMessage);
+      this.addMessage("assistant", `Starting @${mention.agentName} in background.`);
+      this.updateStatus(`@${mention.agentName} running in background`);
+      // TODO: Wire to background-manager once implemented.
+      return;
+    }
+
+    // Foreground execution: stream the agent's response inline.
+    this.addMessage("user", mention.originalMessage);
+    this.addMessage("assistant", `[@${mention.agentName}] Processing...`);
+
+    // Ensure we have a session.
+    if (!this.currentSession) {
+      this.startNewSession();
+    }
+    this.currentSession!.messages.push({
+      role: "user",
+      content: mention.originalMessage,
+      timestamp: new Date().toISOString(),
+    });
+
+    // Build agent-specific system prompt.
+    let systemPrompt: string;
+    try {
+      systemPrompt = await this.plugin.memoryInjector.buildSystemPromptContext();
+    } catch {
+      systemPrompt = "You are Chimera Nexus, an AI assistant in Obsidian.";
+    }
+    if (agent.systemPrompt) {
+      systemPrompt = agent.systemPrompt + "\n\n" + systemPrompt;
+    }
+
+    // Create streaming message element.
+    const assistantMsgEl = this.createStreamingMessage();
+    this.isStreaming = true;
+    this.updateStatus(`@${mention.agentName} responding...`);
+
+    let fullResponse = "";
+    this.plugin.sdkWrapper.sendMessage(mention.task, systemPrompt, {
+      onChunk: (chunk) => {
+        fullResponse += chunk;
+        this.updateStreamingMessage(assistantMsgEl, `[@${mention.agentName}] ${fullResponse}`);
+      },
+      onComplete: async (completeText) => {
+        this.isStreaming = false;
+        this.updateStreamingMessage(assistantMsgEl, `[@${mention.agentName}] ${completeText}`);
+        this.addMessage("assistant", `[@${mention.agentName}] Complete`);
+        this.updateStatus("Ready");
+
+        // Add to session.
+        this.currentSession!.messages.push({
+          role: "assistant",
+          content: `[@${mention.agentName}] ${completeText}`,
+          timestamp: new Date().toISOString(),
+        });
+        this.currentSession!.messageCount = this.currentSession!.messages.length;
+        this.currentSession!.updated = new Date().toISOString();
+
+        // Save session.
+        try {
+          await this.plugin.sessionStore.saveSession(this.currentSession!);
+        } catch (err) {
+          console.warn("Failed to save session after mention:", err);
+        }
+      },
+      onError: (error) => {
+        this.isStreaming = false;
+        this.updateStreamingMessage(assistantMsgEl, `[@${mention.agentName}] Error: ${error.message}`);
+        this.updateStatus("Error occurred");
+      },
+    });
   }
 }
