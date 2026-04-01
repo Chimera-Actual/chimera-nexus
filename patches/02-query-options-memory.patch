@@ -1,0 +1,44 @@
+diff --git a/src/core/agent/QueryOptionsBuilder.ts b/src/core/agent/QueryOptionsBuilder.ts
+index e4befa8..cbe54d3 100644
+--- a/src/core/agent/QueryOptionsBuilder.ts
++++ b/src/core/agent/QueryOptionsBuilder.ts
+@@ -47,6 +47,7 @@ export interface QueryOptionsContext {
+   mcpManager: McpServerManager;
+   /** Plugin manager for Claude Code plugins. */
+   pluginManager: PluginManager;
++  memoryContext?: string;  // CHIMERA PATCH: vault memory context
+ }
+ 
+ /**
+@@ -69,6 +70,7 @@ export interface PersistentQueryContext extends QueryOptionsContext {
+   hooks: Options['hooks'];
+   /** External context paths for additionalDirectories SDK option. */
+   externalContextPaths?: string[];
++  memoryContext?: string;  // CHIMERA PATCH: vault memory context
+ }
+ 
+ /**
+@@ -95,6 +97,7 @@ export interface ColdStartQueryContext extends QueryOptionsContext {
+   hasEditorContext: boolean;
+   /** External context paths for additionalDirectories SDK option. */
+   externalContextPaths?: string[];
++  memoryContext?: string;  // CHIMERA PATCH: vault memory context
+ }
+ 
+ /** Static builder for SDK Options and configuration objects. */
+@@ -189,6 +192,7 @@ export class QueryOptionsBuilder {
+       allowExternalAccess: ctx.settings.allowExternalAccess,
+       vaultPath: ctx.vaultPath,
+       userName: ctx.settings.userName,
++      memoryContext: ctx.memoryContext,  // CHIMERA PATCH
+     });
+ 
+     const options: Options = {
+@@ -253,6 +257,7 @@ export class QueryOptionsBuilder {
+       allowExternalAccess: ctx.settings.allowExternalAccess,
+       vaultPath: ctx.vaultPath,
+       userName: ctx.settings.userName,
++      memoryContext: ctx.memoryContext,  // CHIMERA PATCH
+     });
+ 
+     const options: Options = {
