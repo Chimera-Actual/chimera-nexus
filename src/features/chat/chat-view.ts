@@ -4,6 +4,9 @@
  * Renders the full chat UI inside Obsidian's right sidebar leaf. The view
  * handles agent switching, @mention detection, streaming SDK responses, hook
  * execution, and post-session processing (memory extraction and summarization).
+ *
+ * Layout mirrors the Claudian plugin's design language with chimera- prefixed
+ * CSS classes throughout.
  */
 
 import { ItemView, Notice, WorkspaceLeaf } from "obsidian";
@@ -68,26 +71,6 @@ function generateUUID(): string {
   });
 }
 
-/** Returns a human-readable label for a permission mode value. */
-function permissionLabel(mode: PermissionMode): string {
-  switch (mode) {
-    case PermissionMode.Safe: return "Safe";
-    case PermissionMode.Plan: return "Plan";
-    case PermissionMode.YOLO: return "YOLO";
-    default: return "Safe";
-  }
-}
-
-/** Returns the CSS modifier class name for a permission mode. */
-function permissionClass(mode: PermissionMode): string {
-  switch (mode) {
-    case PermissionMode.Safe: return "is-safe";
-    case PermissionMode.Plan: return "is-plan";
-    case PermissionMode.YOLO: return "is-yolo";
-    default: return "is-safe";
-  }
-}
-
 // ---------------------------------------------------------------------------
 // ChimeraChatView
 // ---------------------------------------------------------------------------
@@ -96,13 +79,12 @@ function permissionClass(mode: PermissionMode): string {
  * Obsidian sidebar view that renders the Chimera Nexus chat interface.
  *
  * Lifecycle:
- * - {@link onOpen} builds the full DOM layout, loads agents and sessions,
- *   and attaches event listeners.
+ * - {@link onOpen} builds the full DOM layout mirroring Claudian's design.
  * - {@link onClose} runs post-session processing (save, memory extraction,
  *   summarization) before tearing down.
  *
  * Public helper surface:
- * - {@link addMessage} appends a labelled message bubble to the chat area.
+ * - {@link addMessage} appends a message bubble to the chat area.
  * - {@link handleSend} dispatches user messages to the SDK with streaming.
  * - {@link updateStatus} updates the status bar text.
  */
@@ -112,13 +94,14 @@ export class ChimeraChatView extends ItemView {
   // -------------------------------------------------------------------------
 
   private agentSelect!: HTMLSelectElement;
-  private sessionListEl!: HTMLElement;
+  private permissionSelect!: HTMLSelectElement;
   private messagesEl!: HTMLElement;
   private inputEl!: HTMLTextAreaElement;
   private statusBarEl!: HTMLElement;
+  private statusDotEl!: HTMLElement;
+  private statusTextEl!: HTMLElement;
   private welcomeEl!: HTMLElement | null;
-  private permissionPillEl!: HTMLElement;
-  private connectionStatusEl!: HTMLElement;
+  private historyMenuEl!: HTMLElement | null;
 
   // -------------------------------------------------------------------------
   // State
@@ -130,6 +113,7 @@ export class ChimeraChatView extends ItemView {
   private agents: AgentDefinition[] = [];
   private agentSelectorComponent: AgentSelector | null = null;
   private isStreaming = false;
+  private historyVisible = false;
 
   // -------------------------------------------------------------------------
   // Constructor
@@ -169,27 +153,30 @@ export class ChimeraChatView extends ItemView {
   /**
    * Called by Obsidian when the leaf is opened.
    *
-   * Builds the complete chat UI layout, loads agents and session index entries,
-   * wires up the AgentSelector component, and attaches all event listeners.
+   * Builds the Claudian-inspired DOM layout, loads agents and session index
+   * entries, wires up the AgentSelector component, and attaches all event
+   * listeners.
    */
   async onOpen(): Promise<void> {
     const container = this.containerEl;
     container.empty();
 
-    // Root wrapper
-    const root = container.createDiv({ cls: "chimera-chat-container" });
+    // Root wrapper -- Claudian-style container
+    const root = container.createDiv({ cls: "chimera-container" });
 
     // ------------------------------------------------------------------
-    // 1. Header bar
+    // 1. Header bar (Claudian header.css pattern)
     // ------------------------------------------------------------------
 
     const header = root.createDiv({ cls: "chimera-header" });
 
-    // Title
-    header.createEl("span", { cls: "chimera-header-title", text: "Chimera Nexus" });
+    const titleSlot = header.createDiv({ cls: "chimera-title-slot" });
+    titleSlot.createEl("h3", { cls: "chimera-title-text", text: "Chimera Nexus" });
+
+    const headerActions = header.createDiv({ cls: "chimera-header-actions" });
 
     // Agent selector dropdown (compact, in header)
-    this.agentSelect = header.createEl("select");
+    this.agentSelect = headerActions.createEl("select", { cls: "chimera-agent-select" });
     const defaultOption = this.agentSelect.createEl("option");
     defaultOption.value = "default";
     defaultOption.textContent = "Default";
@@ -199,14 +186,10 @@ export class ChimeraChatView extends ItemView {
       this.handleAgentChange(value === "default" ? "" : value);
     });
 
-    // Permission mode pill
-    this.permissionPillEl = header.createDiv({ cls: "chimera-permission-pill" });
-    this.renderPermissionPill();
-
-    // New session button
-    const newSessionBtn = header.createEl("button", { cls: "chimera-new-session-btn" });
-    newSessionBtn.textContent = "+";
+    // New session button (plus icon)
+    const newSessionBtn = headerActions.createEl("span", { cls: "chimera-header-btn" });
     newSessionBtn.title = "New Session";
+    newSessionBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>`;
     newSessionBtn.addEventListener("click", () => {
       this.startNewSession();
       this.messagesEl.innerHTML = "";
@@ -214,28 +197,34 @@ export class ChimeraChatView extends ItemView {
       this.updateStatus("New session started.");
     });
 
+    // History toggle button
+    const historyBtn = headerActions.createEl("span", { cls: "chimera-header-btn" });
+    historyBtn.title = "Session History";
+    historyBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8v4l3 3"></path><circle cx="12" cy="12" r="10"></circle></svg>`;
+    historyBtn.addEventListener("click", () => {
+      this.toggleHistory();
+    });
+
     // ------------------------------------------------------------------
-    // 2. Session list (collapsible, hidden by default)
+    // 2. Messages wrapper (Claudian messages.css pattern)
     // ------------------------------------------------------------------
 
-    this.sessionListEl = root.createDiv({ cls: "chimera-session-list" });
-
-    // ------------------------------------------------------------------
-    // 3. Messages area with welcome state
-    // ------------------------------------------------------------------
-
-    this.messagesEl = root.createDiv({ cls: "chimera-messages" });
+    const messagesWrapper = root.createDiv({ cls: "chimera-messages-wrapper" });
+    this.messagesEl = messagesWrapper.createDiv({ cls: "chimera-messages" });
     this.showWelcome();
 
+    // History menu (hidden by default, positioned inside wrapper)
+    this.historyMenuEl = null;
+
     // ------------------------------------------------------------------
-    // 4. Input area
+    // 3. Input area (Claudian input.css pattern)
     // ------------------------------------------------------------------
 
-    const inputArea = root.createDiv({ cls: "chimera-input-area" });
+    const inputContainer = root.createDiv({ cls: "chimera-input-container" });
+    const inputWrapper = inputContainer.createDiv({ cls: "chimera-input-wrapper" });
 
-    this.inputEl = inputArea.createEl("textarea");
+    this.inputEl = inputWrapper.createEl("textarea", { cls: "chimera-input" });
     this.inputEl.placeholder = "Message Chimera... (use @agent to delegate)";
-    this.inputEl.rows = 2;
 
     this.inputEl.addEventListener("keydown", (evt: KeyboardEvent) => {
       if (evt.key === "Enter" && !evt.shiftKey) {
@@ -245,7 +234,27 @@ export class ChimeraChatView extends ItemView {
       // Shift+Enter falls through and inserts a newline naturally.
     });
 
-    const sendBtn = inputArea.createEl("button", { cls: "chimera-send-btn" });
+    const toolbar = inputWrapper.createDiv({ cls: "chimera-input-toolbar" });
+
+    // Permission mode selector in toolbar
+    const permissionToggle = toolbar.createDiv({ cls: "chimera-permission-toggle" });
+    this.permissionSelect = permissionToggle.createEl("select", { cls: "chimera-permission-select" });
+
+    for (const pm of [PermissionMode.Safe, PermissionMode.Plan, PermissionMode.YOLO]) {
+      const opt = this.permissionSelect.createEl("option");
+      opt.value = pm;
+      opt.textContent = pm === PermissionMode.Safe ? "Safe" : pm === PermissionMode.Plan ? "Plan" : "YOLO";
+      if (pm === this.plugin.settings.permissionMode) opt.selected = true;
+    }
+
+    this.permissionSelect.className = `chimera-permission-select mode-${this.plugin.settings.permissionMode}`;
+
+    this.permissionSelect.addEventListener("change", () => {
+      this.handlePermissionChange(this.permissionSelect.value);
+    });
+
+    // Send button at end of toolbar
+    const sendBtn = toolbar.createEl("button", { cls: "chimera-send-btn" });
     sendBtn.innerHTML = "&#9654;"; // Right-pointing triangle (play icon)
     sendBtn.title = "Send message";
     sendBtn.addEventListener("click", () => {
@@ -253,16 +262,16 @@ export class ChimeraChatView extends ItemView {
     });
 
     // ------------------------------------------------------------------
-    // 5. Status bar with connection indicator
+    // 4. Status bar with connection indicator
     // ------------------------------------------------------------------
 
     this.statusBarEl = root.createDiv({ cls: "chimera-status-bar" });
-
-    this.connectionStatusEl = this.statusBarEl.createDiv({ cls: "chimera-connection-status" });
+    this.statusDotEl = this.statusBarEl.createEl("span", { cls: "chimera-status-dot" });
+    this.statusTextEl = this.statusBarEl.createEl("span");
     this.updateConnectionStatus();
 
     // ------------------------------------------------------------------
-    // 6. Load agents and wire up AgentSelector
+    // 5. Load agents and wire up AgentSelector
     // ------------------------------------------------------------------
 
     try {
@@ -343,6 +352,8 @@ export class ChimeraChatView extends ItemView {
 
   /**
    * Appends a message bubble to the messages area and scrolls to the bottom.
+   * Uses Claudian-style layout: no role labels, user messages right-aligned
+   * with dark bubble, assistant messages transparent full-width left-aligned.
    *
    * @param role    - Either `"user"` or `"assistant"`.
    * @param content - Plain-text message content to display.
@@ -352,11 +363,8 @@ export class ChimeraChatView extends ItemView {
     this.clearWelcome();
 
     const msgEl = this.messagesEl.createDiv({
-      cls: `chimera-message is-${role}`,
+      cls: `chimera-message chimera-message-${role}`,
     });
-
-    const roleLabel = msgEl.createDiv({ cls: "chimera-message-role" });
-    roleLabel.textContent = role === "user" ? "You" : "Chimera";
 
     const contentEl = msgEl.createDiv({ cls: "chimera-message-content" });
     contentEl.textContent = content;
@@ -372,6 +380,9 @@ export class ChimeraChatView extends ItemView {
   async handleSend(): Promise<void> {
     const text = this.inputEl.value.trim();
     if (!text || this.isStreaming) return;
+
+    // Clear welcome on send.
+    this.clearWelcome();
 
     // Check for slash command before anything else.
     if (this.plugin.slashCommands.isSlashCommand(text)) {
@@ -498,15 +509,8 @@ export class ChimeraChatView extends ItemView {
    * @param text - Status message to display (e.g. `"Ready"`, `"Thinking..."`).
    */
   updateStatus(text: string): void {
-    // Update connection status then append the status text.
     this.updateConnectionStatus();
-
-    // Add a text span after the connection indicator.
-    let statusTextEl = this.statusBarEl.querySelector(".chimera-status-text") as HTMLElement | null;
-    if (!statusTextEl) {
-      statusTextEl = this.statusBarEl.createEl("span", { cls: "chimera-status-text" });
-    }
-    statusTextEl.textContent = text;
+    this.statusTextEl.textContent = text;
   }
 
   // -------------------------------------------------------------------------
@@ -515,12 +519,11 @@ export class ChimeraChatView extends ItemView {
 
   /**
    * Shows the centered welcome/empty state in the messages area.
+   * Uses Claudian's "What can I help with?" greeting style.
    */
   private showWelcome(): void {
     this.welcomeEl = this.messagesEl.createDiv({ cls: "chimera-welcome" });
-    this.welcomeEl.createDiv({ cls: "chimera-welcome-icon", text: "\uD83E\uDD16" });
-    this.welcomeEl.createEl("h3", { text: "Chimera Nexus" });
-    this.welcomeEl.createEl("p", { text: "Start a conversation, select an agent, or type /help" });
+    this.welcomeEl.createDiv({ cls: "chimera-welcome-greeting", text: "What can I help with?" });
   }
 
   /**
@@ -534,55 +537,86 @@ export class ChimeraChatView extends ItemView {
   }
 
   /**
-   * Renders the permission mode pill in the header.
+   * Handles permission mode changes from the toolbar dropdown.
    */
-  private renderPermissionPill(): void {
-    const mode = this.plugin.settings.permissionMode;
-    this.permissionPillEl.innerHTML = "";
-    this.permissionPillEl.className = `chimera-permission-pill ${permissionClass(mode)}`;
-
-    // Dot indicator
-    this.permissionPillEl.createDiv({ cls: "chimera-permission-pill-dot" });
-
-    // Dropdown inside the pill
-    const select = this.permissionPillEl.createEl("select");
-    for (const pm of [PermissionMode.Safe, PermissionMode.Plan, PermissionMode.YOLO]) {
-      const opt = select.createEl("option");
-      opt.value = pm;
-      opt.textContent = permissionLabel(pm);
-      if (pm === mode) opt.selected = true;
-    }
-
-    select.addEventListener("change", async () => {
-      this.plugin.settings.permissionMode = select.value as PermissionMode;
-      await this.plugin.saveSettings();
-      this.renderPermissionPill();
-    });
+  private async handlePermissionChange(mode: string): Promise<void> {
+    this.plugin.settings.permissionMode = mode as PermissionMode;
+    await this.plugin.saveSettings();
+    // Update visual indicator
+    this.permissionSelect.className = `chimera-permission-select mode-${mode}`;
   }
 
   /**
-   * Updates the connection status indicator in the status bar.
+   * Updates the connection status dot in the status bar.
    */
   private updateConnectionStatus(): void {
-    this.connectionStatusEl.innerHTML = "";
-
     const settings = this.plugin.settings;
     let label: string;
-    let dotClass: string;
+    let isConnected: boolean;
 
     if (settings.authMethod === AuthMethod.CLI) {
-      label = `Connected via CLI (${settings.cliPath})`;
-      dotClass = "is-connected";
+      label = `CLI (${settings.cliPath})`;
+      isConnected = true;
     } else if (settings.authMethod === AuthMethod.APIKey && settings.apiKey) {
-      label = "Connected via API Key";
-      dotClass = "is-connected";
+      label = "API Key";
+      isConnected = true;
     } else {
       label = "Not configured";
-      dotClass = "is-disconnected";
+      isConnected = false;
     }
 
-    this.connectionStatusEl.createDiv({ cls: `chimera-connection-dot ${dotClass}` });
-    this.connectionStatusEl.createEl("span", { text: label });
+    this.statusDotEl.className = isConnected
+      ? "chimera-status-dot"
+      : "chimera-status-dot disconnected";
+
+    // Only update text if no explicit status has been set
+    if (!this.statusTextEl.textContent || this.statusTextEl.textContent === label) {
+      this.statusTextEl.textContent = label;
+    }
+  }
+
+  /**
+   * Toggles the session history popover.
+   */
+  private toggleHistory(): void {
+    if (this.historyVisible && this.historyMenuEl) {
+      this.historyMenuEl.remove();
+      this.historyMenuEl = null;
+      this.historyVisible = false;
+      return;
+    }
+
+    // Build history menu
+    const wrapper = this.containerEl.querySelector(".chimera-messages-wrapper");
+    if (!wrapper) return;
+
+    this.historyMenuEl = wrapper.createDiv({ cls: "chimera-history-menu" });
+    this.historyVisible = true;
+
+    const entries = this.plugin.sessionIndex.getEntries();
+    if (entries.length === 0) {
+      const emptyEl = this.historyMenuEl.createDiv({ cls: "chimera-history-item" });
+      emptyEl.createDiv({ cls: "chimera-history-title", text: "No sessions yet" });
+    } else {
+      for (const entry of entries) {
+        const item = this.historyMenuEl.createDiv({ cls: "chimera-history-item" });
+        if (this.currentSession && entry.sessionId === this.currentSession.sessionId) {
+          item.addClass("active");
+        }
+        item.createDiv({
+          cls: "chimera-history-title",
+          text: entry.title || entry.sessionId.slice(0, 8),
+        });
+        item.createDiv({
+          cls: "chimera-history-meta",
+          text: `${entry.agent || "default"} - ${entry.messageCount} msgs`,
+        });
+        item.addEventListener("click", () => {
+          this.handleSessionResume(entry.sessionId);
+          this.toggleHistory(); // Close menu after selection
+        });
+      }
+    }
   }
 
   // -------------------------------------------------------------------------
@@ -592,10 +626,6 @@ export class ChimeraChatView extends ItemView {
   /**
    * Creates a new {@link Session} object with a random ID and sets it as the
    * current session.
-   *
-   * The agent name is taken from the currently selected agent, or `"default"`
-   * if no agent is selected. The title is derived from the first user message
-   * later during summarization.
    */
   private startNewSession(): void {
     const now = new Date().toISOString();
@@ -630,11 +660,8 @@ export class ChimeraChatView extends ItemView {
     this.clearWelcome();
 
     const msgEl = this.messagesEl.createDiv({
-      cls: "chimera-message is-assistant",
+      cls: "chimera-message chimera-message-assistant",
     });
-
-    const roleLabel = msgEl.createDiv({ cls: "chimera-message-role" });
-    roleLabel.textContent = "Chimera";
 
     const contentEl = msgEl.createDiv({ cls: "chimera-message-content" });
     contentEl.textContent = "";
