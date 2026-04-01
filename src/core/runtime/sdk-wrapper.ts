@@ -142,12 +142,13 @@ export class SdkWrapper {
     let child: ChildProcess;
 
     try {
-      const args = ["--output-format", "stream-json", "-p", prompt, "--system-prompt", systemPrompt];
+      const args = ["--verbose", "--output-format", "stream-json", "-p", prompt, "--system-prompt", systemPrompt];
       if (this.settings.model) {
         args.push("--model", this.settings.model);
       }
       child = spawn(this.settings.cliPath, args, {
         shell: true, // Required for PATH resolution on Windows
+        stdio: ["ignore", "pipe", "pipe"], // Close stdin to suppress "no stdin data" warning
       });
     } catch (err) {
       callbacks.onError(

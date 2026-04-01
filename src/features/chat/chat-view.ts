@@ -127,6 +127,9 @@ export class ChimeraChatView extends ItemView {
   private isStreaming = false;
   private renderComponent: Component = new Component();
   private outsideClickHandler: ((evt: MouseEvent) => void) | null = null;
+  private thinkingIndicatorEl: HTMLElement | null = null;
+  private thinkingStartTime = 0;
+  private thinkingTimerInterval: number | null = null;
 
   // -------------------------------------------------------------------------
   // Constructor
@@ -356,6 +359,7 @@ export class ChimeraChatView extends ItemView {
    * summary note.
    */
   async onClose(): Promise<void> {
+    this.removeThinkingIndicator();
     if (this.outsideClickHandler) {
       document.removeEventListener("click", this.outsideClickHandler);
     }
@@ -425,6 +429,20 @@ export class ChimeraChatView extends ItemView {
     } else {
       contentEl.textContent = content;
     }
+
+    // Copy button (hover to reveal)
+    const copyBtn = msgEl.createDiv({ cls: "chimera-message-copy-btn" });
+    setIcon(copyBtn, "copy");
+    copyBtn.title = "Copy to clipboard";
+    copyBtn.addEventListener("click", async () => {
+      await navigator.clipboard.writeText(content);
+      setIcon(copyBtn, "check");
+      copyBtn.title = "Copied!";
+      setTimeout(() => {
+        setIcon(copyBtn, "copy");
+        copyBtn.title = "Copy to clipboard";
+      }, 2000);
+    });
 
     this.messagesEl.scrollTop = this.messagesEl.scrollHeight;
     this.clearWelcome();
@@ -523,14 +541,23 @@ export class ChimeraChatView extends ItemView {
     // Create a placeholder message element for streaming.
     const assistantMsgEl = this.createStreamingMessage();
 
+    // Show thinking indicator while waiting for first chunk.
+    this.showThinkingIndicator();
+
     // Send via SDK.
     let fullResponse = "";
+    let firstChunk = true;
     this.plugin.sdkWrapper.sendMessage(finalText, systemPrompt, {
       onChunk: (chunk) => {
+        if (firstChunk) {
+          firstChunk = false;
+          this.removeThinkingIndicator();
+        }
         fullResponse += chunk;
         this.updateStreamingMessage(assistantMsgEl, fullResponse);
       },
       onComplete: async (completeText) => {
+        this.removeThinkingIndicator();
         this.isStreaming = false;
         this.inputEl.disabled = false;
         this.inputEl.focus();
@@ -566,6 +593,7 @@ export class ChimeraChatView extends ItemView {
         }
       },
       onError: (error) => {
+        this.removeThinkingIndicator();
         this.isStreaming = false;
         this.inputEl.disabled = false;
         this.inputEl.focus();
@@ -1222,13 +1250,22 @@ export class ChimeraChatView extends ItemView {
     this.isStreaming = true;
     this.updateStatus(`@${mention.agentName} responding...`);
 
+    // Show thinking indicator while waiting for first chunk.
+    this.showThinkingIndicator();
+
     let fullResponse = "";
+    let mentionFirstChunk = true;
     this.plugin.sdkWrapper.sendMessage(mention.task, systemPrompt, {
       onChunk: (chunk) => {
+        if (mentionFirstChunk) {
+          mentionFirstChunk = false;
+          this.removeThinkingIndicator();
+        }
         fullResponse += chunk;
         this.updateStreamingMessage(assistantMsgEl, `[@${mention.agentName}] ${fullResponse}`);
       },
       onComplete: async (completeText) => {
+        this.removeThinkingIndicator();
         this.isStreaming = false;
         this.updateStreamingMessage(assistantMsgEl, `[@${mention.agentName}] ${completeText}`);
         this.addMessage("assistant", `[@${mention.agentName}] Complete`);
@@ -1251,11 +1288,53 @@ export class ChimeraChatView extends ItemView {
         }
       },
       onError: (error) => {
+        this.removeThinkingIndicator();
         this.isStreaming = false;
         this.updateStreamingMessage(assistantMsgEl, `[@${mention.agentName}] Error: ${error.message}`);
         this.updateStatus("Error occurred");
       },
     });
+  }
+
+  // -------------------------------------------------------------------------
+  // Private helpers - thinking indicator
+  // -------------------------------------------------------------------------
+
+  /**
+   * Shows a "Thinking..." indicator in the messages area with an elapsed timer.
+   * Removed automatically when the first streaming chunk arrives.
+   */
+  private showThinkingIndicator(): void {
+    this.removeThinkingIndicator();
+    this.thinkingStartTime = Date.now();
+
+    this.thinkingIndicatorEl = this.messagesEl.createDiv({ cls: "chimera-thinking-indicator" });
+    const textEl = this.thinkingIndicatorEl.createSpan({ cls: "chimera-thinking-indicator-text" });
+    textEl.textContent = "Thinking...";
+    const timerEl = this.thinkingIndicatorEl.createSpan({ cls: "chimera-thinking-indicator-timer" });
+    timerEl.textContent = "(esc to interrupt)";
+
+    // Update timer every second
+    this.thinkingTimerInterval = window.setInterval(() => {
+      const elapsed = Math.floor((Date.now() - this.thinkingStartTime) / 1000);
+      timerEl.textContent = `(esc to interrupt - ${elapsed}s)`;
+    }, 1000);
+
+    this.messagesEl.scrollTop = this.messagesEl.scrollHeight;
+  }
+
+  /**
+   * Removes the thinking indicator from the messages area and clears the timer.
+   */
+  private removeThinkingIndicator(): void {
+    if (this.thinkingTimerInterval !== null) {
+      clearInterval(this.thinkingTimerInterval);
+      this.thinkingTimerInterval = null;
+    }
+    if (this.thinkingIndicatorEl) {
+      this.thinkingIndicatorEl.remove();
+      this.thinkingIndicatorEl = null;
+    }
   }
 
   // -------------------------------------------------------------------------

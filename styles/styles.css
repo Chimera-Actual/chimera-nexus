@@ -121,6 +121,7 @@
    --------------------------------------------------------------------------- */
 
 .chimera-message {
+  position: relative;
   padding: 12px 16px;
   border-radius: 8px;
   max-width: 95%;
@@ -152,6 +153,64 @@
 
 .chimera-message-content p { margin: 0 0 8px 0; }
 .chimera-message-content p:last-child { margin-bottom: 0; }
+
+/* ---------------------------------------------------------------------------
+   Thinking indicator (like Claudian's "Compiling thoughts...")
+   --------------------------------------------------------------------------- */
+
+.chimera-thinking-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+}
+.chimera-thinking-indicator-text {
+  color: var(--chimera-brand);
+  font-style: italic;
+  font-size: 13px;
+  animation: thinking-pulse 1.5s ease-in-out infinite;
+}
+.chimera-thinking-indicator-timer {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+/* ---------------------------------------------------------------------------
+   Message copy button (hover to reveal, like Claudian)
+   --------------------------------------------------------------------------- */
+
+.chimera-message-copy-btn {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  cursor: pointer;
+  color: var(--text-faint);
+  opacity: 0;
+  transition: opacity 0.15s ease, color 0.15s ease, background 0.15s ease;
+  z-index: 2;
+}
+.chimera-message:hover .chimera-message-copy-btn {
+  opacity: 1;
+}
+.chimera-message-copy-btn:hover {
+  color: var(--text-normal);
+  background: var(--background-modifier-hover);
+}
+.chimera-message-copy-btn svg {
+  width: 14px;
+  height: 14px;
+}
+/* User messages: position on the left since content is right-aligned */
+.chimera-message-user .chimera-message-copy-btn {
+  right: auto;
+  left: 4px;
+}
 
 /* ---------------------------------------------------------------------------
    Nav row (between messages and input, like Claudian's tab badges row)
