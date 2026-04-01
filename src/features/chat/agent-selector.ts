@@ -21,6 +21,9 @@ export class AgentSelector {
   /** Container element for the session list. */
   private sessionListEl: HTMLElement | null = null;
 
+  /** Full list of sessions, unfiltered. */
+  private sessions: SessionIndexEntry[] = [];
+
   /**
    * @param containerEl - Root element to render the selector into.
    * @param agents - Initial list of available agents.
@@ -41,39 +44,46 @@ export class AgentSelector {
    * multiple times - the container is cleared on each invocation.
    */
   render(): void {
-    this.containerEl.empty();
+    this.containerEl.innerHTML = "";
     this.selectEl = null;
     this.sessionListEl = null;
 
     // --- Agent selector area ---
-    const selectorArea = this.containerEl.createEl("div", {
-      cls: "chimera-agent-selector",
-    });
+    const selectorArea = document.createElement("div");
+    selectorArea.className = "chimera-agent-selector";
+    this.containerEl.appendChild(selectorArea);
 
-    const select = selectorArea.createEl("select");
+    const select = document.createElement("select");
     this.selectEl = select;
+    selectorArea.appendChild(select);
 
     // Default option
-    const defaultOption = select.createEl("option");
+    const defaultOption = document.createElement("option");
     defaultOption.value = "";
     defaultOption.textContent = "Default Chimera";
+    select.appendChild(defaultOption);
 
     // One option per agent
     for (const agent of this.agents) {
-      const option = select.createEl("option");
-      option.value = agent.name;
-      option.textContent = agent.name;
-      option.title = agent.description;
+      select.appendChild(this.buildAgentOption(agent));
     }
 
     select.addEventListener("change", () => {
-      this.onAgentChange(select.value);
+      const value = select.value;
+      this.onAgentChange(value);
+      this.filterSessions(value);
     });
 
+    // New Session button
+    const newSessionBtn = document.createElement("button");
+    newSessionBtn.className = "chimera-new-session-btn";
+    newSessionBtn.textContent = "New Session";
+    selectorArea.appendChild(newSessionBtn);
+
     // --- Session list area ---
-    const sessionList = this.containerEl.createEl("div", {
-      cls: "chimera-session-list",
-    });
+    const sessionList = document.createElement("div");
+    sessionList.className = "chimera-session-list";
+    this.containerEl.appendChild(sessionList);
     this.sessionListEl = sessionList;
 
     this.renderSessionPlaceholder();
@@ -102,10 +112,7 @@ export class AgentSelector {
     }
 
     for (const agent of this.agents) {
-      const option = this.selectEl.createEl("option");
-      option.value = agent.name;
-      option.textContent = agent.name;
-      option.title = agent.description;
+      this.selectEl.appendChild(this.buildAgentOption(agent));
     }
 
     // Restore previous selection if still valid
@@ -122,39 +129,8 @@ export class AgentSelector {
    * @param sessions - Updated list of session index entries.
    */
   setSessions(sessions: SessionIndexEntry[]): void {
-    if (!this.sessionListEl) {
-      return;
-    }
-
-    this.sessionListEl.empty();
-
-    if (sessions.length === 0) {
-      this.renderSessionPlaceholder();
-      return;
-    }
-
-    const sorted = [...sessions].sort(
-      (a, b) => new Date(b.updated).getTime() - new Date(a.updated).getTime()
-    );
-
-    for (const session of sorted) {
-      const item = this.sessionListEl.createEl("div", {
-        cls: "chimera-session-item",
-      });
-
-      const dateStr = new Date(session.updated).toLocaleDateString(undefined, {
-        year: "numeric",
-        month: "short",
-        day: "numeric",
-      });
-
-      item.createEl("span", { cls: "chimera-session-title", text: session.title });
-      item.createEl("span", { cls: "chimera-session-date", text: dateStr });
-
-      item.addEventListener("click", () => {
-        this.onSessionSelect(session.sessionId);
-      });
-    }
+    this.sessions = sessions;
+    this.filterSessions(this.selectEl?.value ?? "");
   }
 
   /**
@@ -172,14 +148,107 @@ export class AgentSelector {
   // Private helpers
   // ---------------------------------------------------------------------------
 
+  /**
+   * Builds an `<option>` element for a given agent definition.
+   *
+   * If the agent has a color, a Unicode dot is prepended to the label so there
+   * is a visual cue even in a plain `<select>` element (which does not support
+   * arbitrary child DOM).
+   */
+  private buildAgentOption(agent: AgentDefinition): HTMLOptionElement {
+    const option = document.createElement("option");
+    option.value = agent.name;
+    option.title = agent.description;
+
+    if (agent.color) {
+      // Prepend a colored dot character. The `<select>` element cannot host
+      // arbitrary child elements, so we use the Unicode CIRCLE symbol and
+      // encode the color in the data attribute for external CSS to pick up.
+      option.textContent = `\u25CF ${agent.name}`;
+      option.dataset["color"] = agent.color;
+      option.style.color = agent.color;
+    } else {
+      option.textContent = agent.name;
+    }
+
+    return option;
+  }
+
+  /**
+   * Filters and re-renders the session list to only show sessions belonging to
+   * the selected agent. An empty `agentName` means the default (no named agent)
+   * and shows only sessions whose `agent` field is also empty.
+   *
+   * @param agentName - The currently selected agent name, or `""` for default.
+   */
+  private filterSessions(agentName: string): void {
+    const filtered = this.sessions.filter((s) => s.agent === agentName);
+    this.renderSessions(filtered);
+  }
+
+  /**
+   * Renders a (possibly filtered) list of sessions into the session list panel.
+   * Shows a placeholder when the list is empty.
+   */
+  private renderSessions(sessions: SessionIndexEntry[]): void {
+    if (!this.sessionListEl) {
+      return;
+    }
+
+    this.sessionListEl.innerHTML = "";
+
+    if (sessions.length === 0) {
+      this.renderSessionPlaceholder();
+      return;
+    }
+
+    const sorted = [...sessions].sort((a, b) => {
+      const timeA = new Date(a.updated || a.created).getTime();
+      const timeB = new Date(b.updated || b.created).getTime();
+      return timeB - timeA;
+    });
+
+    for (const session of sorted) {
+      const item = document.createElement("div");
+      item.className = "chimera-session-item";
+
+      const title = document.createElement("span");
+      title.className = "chimera-session-title";
+      title.textContent = session.title || "Untitled Session";
+      item.appendChild(title);
+
+      const dateStr = new Date(session.created).toLocaleDateString(undefined, {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+      });
+
+      const date = document.createElement("span");
+      date.className = "chimera-session-date";
+      date.textContent = dateStr;
+      item.appendChild(date);
+
+      const count = document.createElement("span");
+      count.className = "chimera-session-count";
+      count.textContent = `${session.messageCount} msg${session.messageCount === 1 ? "" : "s"}`;
+      item.appendChild(count);
+
+      item.addEventListener("click", () => {
+        this.onSessionSelect(session.sessionId);
+      });
+
+      this.sessionListEl.appendChild(item);
+    }
+  }
+
   /** Appends the "No sessions yet" placeholder to the session list element. */
   private renderSessionPlaceholder(): void {
     if (!this.sessionListEl) {
       return;
     }
-    this.sessionListEl.createEl("div", {
-      cls: "chimera-session-placeholder",
-      text: "No sessions yet",
-    });
+    const placeholder = document.createElement("div");
+    placeholder.className = "chimera-session-placeholder";
+    placeholder.textContent = "No sessions yet";
+    this.sessionListEl.appendChild(placeholder);
   }
 }
