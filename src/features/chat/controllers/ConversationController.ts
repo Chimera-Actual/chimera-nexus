@@ -520,6 +520,21 @@ export class ConversationController {
     // At this point, currentConversationId is guaranteed to be set
     // (either existed before or was created lazily above)
     await plugin.updateConversation(state.currentConversationId!, updates);
+
+    // CHIMERA PATCH: post-session memory extraction (fire-and-forget)
+    if ((plugin as any).chimeraManager && state.messages.length > 0) {
+      const chimera = (plugin as any).chimeraManager;
+      chimera.extractAndStoreMemory({
+        conversationId: state.currentConversationId!,
+        messages: state.messages.map((m: any) => ({
+          role: m.role || 'assistant',
+          content: typeof m.content === 'string' ? m.content :
+            Array.isArray(m.content) ? m.content.map((c: any) => c.text || '').join('') : JSON.stringify(m.content),
+        })),
+        sessionId: resolvedSessionId ?? null,
+        timestamp: Date.now(),
+      }).catch((err: unknown) => console.warn('[Chimera] Post-session extraction failed:', err));
+    }
   }
 
   /**
