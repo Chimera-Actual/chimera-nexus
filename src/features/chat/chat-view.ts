@@ -449,14 +449,25 @@ export class ChimeraChatView extends ItemView {
         vault: this.app.vault,
         settings: this.plugin.settings,
         addChatMessage: (role, content) => this.addMessage(role, content),
+        saveSettings: () => this.plugin.saveSettings(),
       };
 
       try {
         const result = await this.plugin.slashCommands.execute(text, context);
-        this.addMessage("assistant", result);
+        if (result) {
+          this.addMessage("assistant", result);
+        }
       } catch (err) {
         const errorMsg = err instanceof Error ? err.message : String(err);
         this.addMessage("assistant", `Command error: ${errorMsg}`);
+      }
+
+      // Handle conversation-clearing commands by resetting the UI.
+      const cmdName = text.trim().replace(/^\//, "").split(/\s+/)[0];
+      if (cmdName === "clear" || cmdName === "new" || cmdName === "reset") {
+        this.startNewSession();
+        this.messagesEl.innerHTML = "";
+        this.showWelcome();
       }
       return;
     }

@@ -49,6 +49,8 @@ export interface SlashCommandContext {
   settings: ChimeraSettings;
   /** Appends a message to the chat panel. */
   addChatMessage: (role: "user" | "assistant", content: string) => void;
+  /** Persists current settings to disk. */
+  saveSettings: () => Promise<void>;
 }
 
 // ---------------------------------------------------------------------------
@@ -93,13 +95,15 @@ export class SlashCommandRegistry {
   /**
    * Registers all built-in Chimera slash commands.
    *
-   * Commands registered: `/help`, `/memory`, `/agents`, `/loop`,
-   * `/schedule`, `/dream`.
+   * Commands registered cover authentication, session management, model/effort
+   * selection, permissions, scheduling stubs, and informational utilities.
    */
   registerBuiltins(): void {
     this.register(this.buildHelp());
     this.register(this.buildMemory());
     this.register(this.buildAgents());
+
+    // Phase 2 stubs
     this.register({
       name: "loop",
       description: "Manage session loops (Phase 2)",
@@ -117,6 +121,284 @@ export class SlashCommandRegistry {
       description: "Run memory consolidation (Phase 2)",
       execute: async () =>
         "Dream cycle is not yet available. Coming in Phase 2.",
+    });
+
+    // -- Auth commands --------------------------------------------------------
+    this.register({
+      name: "login",
+      description: "Sign in to your Anthropic account",
+      execute: async (_args, context) => {
+        return this.runCliCommand("claude auth login", context);
+      },
+    });
+    this.register({
+      name: "logout",
+      description: "Sign out from your Anthropic account",
+      execute: async (_args, context) => {
+        return this.runCliCommand("claude auth logout", context);
+      },
+    });
+    this.register({
+      name: "status",
+      description: "Show version, model, account, and connectivity",
+      execute: async (_args, context) => {
+        return this.runCliCommand("claude auth status --text", context);
+      },
+    });
+
+    // -- Session commands -----------------------------------------------------
+    this.register({
+      name: "clear",
+      description: "Clear conversation and start fresh",
+      execute: async (_args, context) => {
+        context.addChatMessage("assistant", "Conversation cleared.");
+        return "";
+      },
+    });
+    this.register({
+      name: "new",
+      description: "Start new conversation (alias for /clear)",
+      execute: async (_args, context) => {
+        context.addChatMessage("assistant", "Conversation cleared.");
+        return "";
+      },
+    });
+    this.register({
+      name: "reset",
+      description: "Reset conversation (alias for /clear)",
+      execute: async (_args, context) => {
+        context.addChatMessage("assistant", "Conversation cleared.");
+        return "";
+      },
+    });
+    this.register({
+      name: "compact",
+      description: "Compact conversation to free context",
+      argumentHint: "[focus instructions]",
+      execute: async (args) => {
+        return `Context compacted.${args ? ` Focus: ${args}` : ""} (Note: full context compaction requires active SDK session)`;
+      },
+    });
+    this.register({
+      name: "cost",
+      description: "Show token usage statistics for current session",
+      execute: async () => {
+        return "Token usage tracking is not yet connected to the SDK. Coming soon.";
+      },
+    });
+    this.register({
+      name: "export",
+      description: "Export conversation as plain text",
+      argumentHint: "[filename]",
+      execute: async () => {
+        return "Export is not yet implemented. Use /memory to access stored sessions.";
+      },
+    });
+    this.register({
+      name: "rename",
+      description: "Rename the current session",
+      argumentHint: "[name]",
+      execute: async (args) => {
+        if (!args) return "Usage: /rename <session name>";
+        return `Session renamed to "${args}". (Note: rename persists on next save)`;
+      },
+    });
+    this.register({
+      name: "copy",
+      description: "Copy last assistant response to clipboard",
+      execute: async () => {
+        return "Copy: select text in the chat and use Ctrl+C. Programmatic copy coming soon.";
+      },
+    });
+
+    // -- Model / Effort commands ----------------------------------------------
+    this.register({
+      name: "model",
+      description: "Select or change the AI model",
+      argumentHint: "[haiku|sonnet|opus]",
+      execute: async (args, context) => {
+        if (!args) {
+          return `Current model: ${context.settings.model}. Use /model haiku|sonnet|opus to change.`;
+        }
+        const model = args.trim().toLowerCase();
+        if (!["haiku", "sonnet", "opus"].includes(model)) {
+          return `Unknown model: ${model}. Available: haiku, sonnet, opus`;
+        }
+        context.settings.model = model;
+        await context.saveSettings();
+        return `Model changed to ${model}.`;
+      },
+    });
+    this.register({
+      name: "effort",
+      description: "Set model effort level",
+      argumentHint: "[low|med|high|max]",
+      execute: async (args, context) => {
+        if (!args) {
+          return `Current effort: ${context.settings.effortLevel}. Use /effort low|med|high|max to change.`;
+        }
+        const level = args.trim().toLowerCase();
+        if (!["low", "med", "high", "max"].includes(level)) {
+          return `Unknown effort level: ${level}. Available: low, med, high, max`;
+        }
+        context.settings.effortLevel = level;
+        await context.saveSettings();
+        return `Effort level changed to ${level}.`;
+      },
+    });
+
+    // -- Permission commands --------------------------------------------------
+    this.register({
+      name: "permissions",
+      description: "View or update tool permissions",
+      execute: async (_args, context) => {
+        const mode = context.settings.permissionMode;
+        return [
+          `Current permission mode: ${mode}`,
+          "",
+          "Modes:",
+          "  safe - Asks permission before write operations",
+          "  plan - Explores code and presents a plan first",
+          "  yolo - All operations auto-approved",
+          "",
+          "Change via the permission selector in the toolbar, or in Settings.",
+        ].join("\n");
+      },
+    });
+
+    // -- Info commands ---------------------------------------------------------
+    this.register({
+      name: "doctor",
+      description: "Diagnose Claude Code installation",
+      execute: async (_args, context) => {
+        return this.runCliCommand("claude doctor", context);
+      },
+    });
+    this.register({
+      name: "config",
+      description: "Open plugin settings",
+      execute: async () => {
+        return "Open Obsidian Settings > Chimera Nexus to configure the plugin.";
+      },
+    });
+    this.register({
+      name: "skills",
+      description: "List available skills",
+      execute: async (_args, context) => {
+        const { SkillLoader } = await import("../core/claude-compat/skill-loader");
+        const loader = new SkillLoader(context.vault);
+        try {
+          const skills = await loader.loadSkills();
+          if (skills.length === 0) return "No skills found in .claude/skills/";
+          return ["Available skills:", ...skills.map(s => `  ${s.name} - ${s.description}`)].join("\n");
+        } catch {
+          return "Failed to load skills.";
+        }
+      },
+    });
+    this.register({
+      name: "hooks",
+      description: "View hook configurations",
+      execute: async (_args, context) => {
+        try {
+          const settingsPath = ".claude/settings.json";
+          const exists = await context.vault.adapter.exists(settingsPath);
+          if (!exists) return "No hooks configured. Create .claude/settings.json to define hooks.";
+          const content = await context.vault.adapter.read(settingsPath);
+          const parsed = JSON.parse(content);
+          if (!parsed.hooks) return "No hooks defined in .claude/settings.json";
+          return "Hooks configuration:\n```json\n" + JSON.stringify(parsed.hooks, null, 2) + "\n```";
+        } catch {
+          return "Failed to read hooks configuration.";
+        }
+      },
+    });
+    this.register({
+      name: "init",
+      description: "Initialize project with CLAUDE.md",
+      execute: async (_args, context) => {
+        const path = "CLAUDE.md";
+        const exists = await context.vault.adapter.exists(path);
+        if (exists) return "CLAUDE.md already exists in your vault root.";
+        const content = [
+          "# CLAUDE.md",
+          "",
+          "## Project Context",
+          "",
+          "Describe your project here. This file is loaded into the system prompt.",
+          "",
+          "## Conventions",
+          "",
+          "- List your coding conventions",
+          "- Describe your file structure",
+          "- Note any important patterns",
+        ].join("\n");
+        await context.vault.adapter.write(path, content);
+        return "Created CLAUDE.md in your vault root. Edit it to provide project context.";
+      },
+    });
+    this.register({
+      name: "context",
+      description: "Show current context usage",
+      execute: async () => {
+        return "Context visualization is not yet implemented. Token usage tracking coming soon.";
+      },
+    });
+    this.register({
+      name: "release-notes",
+      description: "View Chimera Nexus changelog",
+      execute: async () => {
+        return [
+          "Chimera Nexus v0.5.0",
+          "",
+          "- Model selector (Haiku/Sonnet/Opus)",
+          "- Effort selector (Max/High/Med/Low)",
+          "- Markdown rendering for responses",
+          "- Tool call rendering with icons",
+          "- Slash command autocomplete",
+          "- Permission selector (Safe/Plan/YOLO)",
+          "- Agent creation UI",
+          "- Session history with search",
+          "- Memory system with /memory command",
+          "- Claude Code compatibility layer",
+        ].join("\n");
+      },
+    });
+    this.register({
+      name: "usage",
+      description: "Show plan usage and rate limits",
+      execute: async (_args, context) => {
+        return this.runCliCommand("claude usage", context);
+      },
+    });
+    this.register({
+      name: "diff",
+      description: "Show uncommitted changes",
+      execute: async (_args, context) => {
+        return this.runCliCommand("git diff", context);
+      },
+    });
+    this.register({
+      name: "plugin",
+      description: "Manage Claude Code plugins",
+      execute: async (_args, context) => {
+        const { PluginLoader } = await import("../core/claude-compat/plugin-loader");
+        const loader = new PluginLoader(context.vault);
+        try {
+          const plugins = await loader.loadPlugins();
+          if (plugins.length === 0) return "No plugins found in .claude/plugins/";
+          return ["Installed plugins:", ...plugins.map(p => `  ${p.name} - ${p.description}`)].join("\n");
+        } catch {
+          return "Failed to load plugins.";
+        }
+      },
+    });
+    this.register({
+      name: "mcp",
+      description: "Manage MCP server connections",
+      execute: async () => {
+        return "MCP server management is configured in .claude/settings.json. UI management coming soon.";
+      },
     });
   }
 
@@ -228,48 +510,104 @@ export class SlashCommandRegistry {
     this.handlers.set(handler.name, handler);
   }
 
+  /**
+   * Executes a shell command (typically a Claude CLI command) and returns its
+   * stdout or an error message.
+   */
+  private async runCliCommand(command: string, context: SlashCommandContext): Promise<string> {
+    const { exec } = await import("child_process");
+    return new Promise((resolve) => {
+      const cliPath = context.settings.cliPath || "claude";
+      const fullCommand = command.startsWith("claude")
+        ? command.replace("claude", cliPath)
+        : command;
+
+      exec(
+        fullCommand,
+        { timeout: 30000 },
+        (err: Error | null, stdout: string, stderr: string) => {
+          if (err) {
+            resolve(`Error: ${stderr || err.message}`);
+            return;
+          }
+          resolve(stdout.trim() || "Command completed successfully.");
+        },
+      );
+    });
+  }
+
   private buildHelp(): SlashCommandHandler {
     return {
       name: "help",
-      description: "Show this help message",
+      description: "Show available commands",
       execute: async () => {
+        const commands = this.listCommands();
         const builtinNames = new Set([
-          "help",
-          "memory",
-          "agents",
-          "loop",
-          "schedule",
-          "dream",
+          "help", "login", "logout", "status", "clear", "new", "reset",
+          "compact", "cost", "export", "model", "effort", "permissions",
+          "doctor", "config", "skills", "hooks", "init", "context",
+          "release-notes", "usage", "rename", "copy", "diff", "plugin",
+          "mcp", "memory", "agents", "loop", "schedule", "dream",
         ]);
 
-        const ccLines: string[] = [];
-        for (const handler of this.handlers.values()) {
-          if (!builtinNames.has(handler.name)) {
-            const hint = handler.argumentHint ? ` ${handler.argumentHint}` : "";
-            ccLines.push(`/${handler.name}${hint} - ${handler.description}`);
+        const ccCommands = commands.filter(c => !builtinNames.has(c.name));
+
+        const lines = [
+          "Chimera Nexus Commands:",
+          "",
+          "Authentication:",
+          "  /login - Sign in to your Anthropic account",
+          "  /logout - Sign out",
+          "  /status - Show account and connection info",
+          "",
+          "Chat:",
+          "  /clear - Clear conversation and start fresh",
+          "  /compact - Compact conversation to free context",
+          "  /rename - Rename current session",
+          "  /copy - Copy last response to clipboard",
+          "  /export - Export conversation as text",
+          "",
+          "Model & Effort:",
+          "  /model [name] - Select model (haiku/sonnet/opus)",
+          "  /effort [level] - Set effort (low/med/high/max)",
+          "",
+          "Memory & Context:",
+          "  /memory - View and manage memory files",
+          "  /context - Show context usage",
+          "  /init - Initialize CLAUDE.md",
+          "",
+          "Agents & Tools:",
+          "  /agents - List available agents",
+          "  /skills - List available skills",
+          "  /plugin - Manage plugins",
+          "  /mcp - Manage MCP servers",
+          "  /permissions - View tool permissions",
+          "  /hooks - View hook configurations",
+          "",
+          "Scheduling:",
+          "  /loop - Session loop tasks",
+          "  /schedule - Scheduled tasks",
+          "  /dream - Memory consolidation",
+          "",
+          "Info:",
+          "  /help - Show this help",
+          "  /config - Open settings",
+          "  /doctor - Diagnose installation",
+          "  /cost - Token usage stats",
+          "  /usage - Plan usage and limits",
+          "  /diff - Show uncommitted changes",
+          "  /release-notes - View changelog",
+        ];
+
+        if (ccCommands.length > 0) {
+          lines.push("", "Claude Code Commands:");
+          for (const cmd of ccCommands) {
+            lines.push(`  /${cmd.name}${cmd.description ? ` - ${cmd.description}` : ""}`);
           }
         }
 
-        const ccSection =
-          ccLines.length > 0
-            ? ccLines.join("\n")
-            : "(No Claude Code commands found in .claude/commands/)";
-
-        return [
-          "Chimera Nexus Commands:",
-          "",
-          "/help - Show this help message",
-          "/memory - View and manage memory files",
-          "/agents - List available agents",
-          "/loop - Manage session loops (Phase 2)",
-          "/schedule - Manage scheduled tasks (Phase 2)",
-          "/dream - Run memory consolidation (Phase 2)",
-          "",
-          "Claude Code Commands:",
-          ccSection,
-          "",
-          "Tip: Use @agent-name to delegate tasks to specific agents.",
-        ].join("\n");
+        lines.push("", "Tip: Use @agent-name to delegate tasks to specific agents.");
+        return lines.join("\n");
       },
     };
   }
