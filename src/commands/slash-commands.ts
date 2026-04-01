@@ -7,6 +7,7 @@
  * `.claude/commands/` folder via {@link CommandLoader}.
  */
 
+import { exec } from "child_process";
 import { Vault, normalizePath } from "obsidian";
 import { ChimeraSettings } from "../core/types";
 import { CommandLoader } from "../core/claude-compat/command-loader";
@@ -515,7 +516,6 @@ export class SlashCommandRegistry {
    * stdout or an error message.
    */
   private async runCliCommand(command: string, context: SlashCommandContext): Promise<string> {
-    const { exec } = await import("child_process");
     return new Promise((resolve) => {
       const cliPath = context.settings.cliPath || "claude";
       const fullCommand = command.startsWith("claude")

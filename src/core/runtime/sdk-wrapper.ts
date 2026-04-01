@@ -35,14 +35,24 @@ export interface StreamCallbacks {
 // ---------------------------------------------------------------------------
 
 /** Shape of a newline-delimited JSON object emitted by the CLI stream. */
-interface CliStreamLine {
+interface CliStreamEvent {
   type: string;
   subtype?: string;
-  text?: string;
   session_id?: string;
+  message?: {
+    content?: Array<{
+      type: string;
+      text?: string;
+      id?: string;
+      name?: string;
+      input?: Record<string, unknown>;
+    }>;
+  };
+  result?: string;
   tool?: string;
   name?: string;
-  input?: unknown;
+  input?: Record<string, unknown>;
+  text?: string; // For legacy/simple text events
 }
 
 // ---------------------------------------------------------------------------
@@ -311,40 +321,42 @@ export class SdkWrapper {
         const line = raw.trim();
         if (line === "") continue;
 
-        let parsed: CliStreamLine;
+        let parsed: CliStreamEvent;
         try {
-          parsed = JSON.parse(line) as CliStreamLine;
+          parsed = JSON.parse(line) as CliStreamEvent;
         } catch {
           // Non-JSON diagnostic line from the CLI - ignore.
           continue;
         }
 
-        // Extract session ID from system/init events for future resumption
-        if (parsed.type === "system" && parsed.session_id) {
+        // Extract session ID from any event that has it
+        if (parsed.session_id) {
           this.currentSessionId = String(parsed.session_id);
         }
 
-        if (
-          parsed.type === "assistant" &&
-          parsed.subtype === "text" &&
-          typeof parsed.text === "string"
-        ) {
-          fullText += parsed.text;
-          callbacks.onChunk(parsed.text);
+        // Handle assistant message events (main content delivery)
+        if (parsed.type === "assistant" && parsed.message?.content) {
+          for (const block of parsed.message.content) {
+            if (block.type === "text" && typeof block.text === "string") {
+              fullText += block.text;
+              callbacks.onChunk(block.text);
+            }
+            // Tool use blocks could be rendered too
+            if (block.type === "tool_use" && block.name) {
+              callbacks.onChunk(`\n[Using ${block.name}...]\n`);
+            }
+          }
         }
 
-        // Detect tool_use events for permission approval awareness
-        if (parsed.type === "tool_use") {
-          const toolName = parsed.tool || parsed.name || "Unknown tool";
-          const toolInput = parsed.input
-            ? JSON.stringify(parsed.input).slice(0, 200)
-            : "";
-          callbacks.onChunk(
-            `\n[Tool: ${toolName}${toolInput ? " - " + toolInput : ""}]\n`
-          );
+        // Handle result event (final summary - stream is done)
+        if (parsed.type === "result") {
+          // The result event signals completion. fullText should already
+          // have all the content from assistant events. If somehow empty,
+          // fall back to result text.
+          if (!fullText && parsed.result) {
+            fullText = String(parsed.result);
+          }
         }
-
-        // `result` signals the end of output; the exit event will call finish.
       }
     });
 

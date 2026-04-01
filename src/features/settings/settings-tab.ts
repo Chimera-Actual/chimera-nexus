@@ -6,6 +6,7 @@
  * Authentication, Memory, Agents, Security, and Advanced.
  */
 
+import { exec } from "child_process";
 import { App, PluginSettingTab, Setting } from "obsidian";
 import { ChimeraSettings, AuthMethod, PermissionMode } from "../../core/types";
 
@@ -75,8 +76,6 @@ export class ChimeraSettingsTab extends PluginSettingTab {
         testBtn.textContent = "Testing...";
         testBtn.setAttribute("disabled", "true");
         try {
-          const childProcess = await import("child_process");
-          const exec = childProcess.exec;
           await new Promise<void>((resolve, reject) => {
             exec(
               `${settings.cliPath || "claude"} --version`,
