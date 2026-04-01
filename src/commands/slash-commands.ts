@@ -254,13 +254,20 @@ export class SlashCommandRegistry {
       description: "View or update tool permissions",
       execute: async (_args, context) => {
         const mode = context.settings.permissionMode;
+        const modeNames: Record<string, string> = {
+          default: "Ask before edits",
+          acceptEdits: "Edit automatically",
+          plan: "Plan mode",
+          bypassPermissions: "Bypass permissions",
+        };
         return [
-          `Current permission mode: ${mode}`,
+          `Current permission mode: ${modeNames[mode] || mode}`,
           "",
           "Modes:",
-          "  safe - Asks permission before write operations",
-          "  plan - Explores code and presents a plan first",
-          "  yolo - All operations auto-approved",
+          "  default - Ask for approval before making each edit",
+          "  acceptEdits - Auto-accept file edits",
+          "  plan - Explore code and present a plan first",
+          "  bypassPermissions - No approval for any operations",
           "",
           "Change via the permission selector in the toolbar, or in Settings.",
         ].join("\n");
@@ -357,7 +364,7 @@ export class SlashCommandRegistry {
           "- Markdown rendering for responses",
           "- Tool call rendering with icons",
           "- Slash command autocomplete",
-          "- Permission selector (Safe/Plan/YOLO)",
+          "- Permission selector (Ask/Auto-edit/Plan/Bypass)",
           "- Agent creation UI",
           "- Session history with search",
           "- Memory system with /memory command",

@@ -359,11 +359,13 @@ export class MemoryInjector {
    */
   private buildPermissionInstruction(mode: PermissionMode): string {
     switch (mode) {
-      case PermissionMode.Safe:
-        return "Ask before any write operations.";
+      case PermissionMode.AskBeforeEdits:
+        return "Ask for approval before making each edit.";
+      case PermissionMode.EditAutomatically:
+        return "You may edit files automatically without asking.";
       case PermissionMode.Plan:
-        return "You may plan freely but ask before executing.";
-      case PermissionMode.YOLO:
+        return "Explore the code and present a plan before editing.";
+      case PermissionMode.BypassPermissions:
         return "All operations are pre-approved.";
     }
   }

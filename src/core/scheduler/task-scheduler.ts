@@ -209,7 +209,7 @@ export class TaskScheduler {
     const permissionMode = (
       Object.values(PermissionMode).includes(fm["permissionMode"] as PermissionMode)
         ? fm["permissionMode"]
-        : PermissionMode.Safe
+        : PermissionMode.AskBeforeEdits
     ) as PermissionMode;
     const maxDurationSeconds =
       typeof fm["maxDurationSeconds"] === "number"

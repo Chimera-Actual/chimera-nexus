@@ -50,14 +50,18 @@ export enum HookEvent {
 /**
  * Controls how permissively the agent is allowed to execute tool calls.
  *
- * - `Safe` - The agent must ask for confirmation before any write operation.
- * - `Plan` - The agent may plan freely but must confirm before execution.
- * - `YOLO` - All tool calls are approved automatically (use with caution).
+ * These mirror the Claude Code CLI `--permission-mode` flag values exactly.
+ *
+ * - `AskBeforeEdits`    - Claude will ask for approval before making each edit.
+ * - `EditAutomatically` - Claude will edit your selected text or the whole file.
+ * - `Plan`              - Claude will explore the code and present a plan before editing.
+ * - `BypassPermissions` - Claude will not ask for approval before running potentially dangerous commands.
  */
 export enum PermissionMode {
-  Safe = "safe",
+  AskBeforeEdits = "default",
+  EditAutomatically = "acceptEdits",
   Plan = "plan",
-  YOLO = "yolo",
+  BypassPermissions = "bypassPermissions",
 }
 
 /**
@@ -543,7 +547,7 @@ export const DEFAULT_SETTINGS: ChimeraSettings = {
   authMethod: AuthMethod.CLI,
   apiKey: "",
   cliPath: "claude",
-  permissionMode: PermissionMode.Safe,
+  permissionMode: PermissionMode.AskBeforeEdits,
   memoryPinnedBudget: 2000,
   memoryTreeBudget: 500,
   maxConcurrentSessions: 2,

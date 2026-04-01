@@ -248,16 +248,8 @@ export class SdkWrapper {
         args.push("--system-prompt", systemPrompt);
       }
 
-      // Permission mode mapping
-      const permMap: Record<string, string> = {
-        safe: "default",
-        plan: "plan",
-        yolo: "bypassPermissions",
-      };
-      args.push(
-        "--permission-mode",
-        permMap[this.settings.permissionMode] || "default"
-      );
+      // Permission mode is already the CLI flag value
+      args.push("--permission-mode", this.settings.permissionMode);
 
       // Model
       if (this.settings.model) {

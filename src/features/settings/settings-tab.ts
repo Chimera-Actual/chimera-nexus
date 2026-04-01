@@ -182,17 +182,19 @@ export class ChimeraSettingsTab extends PluginSettingTab {
     });
 
     new Setting(containerEl)
-      .setName("Permission Mode")
+      .setName("Default Permission Mode")
       .setDesc(
-        "Safe: Asks permission before any write operations. " +
-        "Plan: Can plan freely, asks before executing changes. " +
-        "YOLO: All operations auto-approved (use with caution)."
+        "Ask before edits: Approval required for each edit. " +
+        "Edit automatically: Auto-accepts file edits. " +
+        "Plan mode: Presents a plan before editing. " +
+        "Bypass permissions: No approval needed (use with caution)."
       )
       .addDropdown((dropdown) => {
         dropdown
-          .addOption(PermissionMode.Safe, "Safe")
-          .addOption(PermissionMode.Plan, "Plan")
-          .addOption(PermissionMode.YOLO, "YOLO")
+          .addOption(PermissionMode.AskBeforeEdits, "Ask before edits")
+          .addOption(PermissionMode.EditAutomatically, "Edit automatically")
+          .addOption(PermissionMode.Plan, "Plan mode")
+          .addOption(PermissionMode.BypassPermissions, "Bypass permissions")
           .setValue(this.plugin.settings.permissionMode)
           .onChange(async (value: string) => {
             this.plugin.settings.permissionMode = value as PermissionMode;

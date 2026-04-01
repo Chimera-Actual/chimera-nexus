@@ -909,10 +909,24 @@ export class ChimeraChatView extends ItemView {
   private updatePermissionButton(): void {
     const mode = this.plugin.settings.permissionMode;
     const labels: Record<string, string> = {
-      safe: "Safe", plan: "Plan", yolo: "YOLO",
+      [PermissionMode.AskBeforeEdits]: "Ask",
+      [PermissionMode.EditAutomatically]: "Auto-edit",
+      [PermissionMode.Plan]: "Plan",
+      [PermissionMode.BypassPermissions]: "Bypass",
     };
-    this.permissionBtnEl.textContent = labels[mode] || "Safe";
-    this.permissionBtnEl.className = `chimera-permission-btn mode-${mode}`;
+    this.permissionBtnEl.textContent = labels[mode] || "Ask";
+
+    // Color based on risk level
+    this.permissionBtnEl.className = "chimera-permission-btn";
+    if (mode === PermissionMode.BypassPermissions) {
+      this.permissionBtnEl.addClass("mode-bypass");
+    } else if (mode === PermissionMode.Plan) {
+      this.permissionBtnEl.addClass("mode-plan");
+    } else if (mode === PermissionMode.EditAutomatically) {
+      this.permissionBtnEl.addClass("mode-auto");
+    } else {
+      this.permissionBtnEl.addClass("mode-ask");
+    }
   }
 
   /**
@@ -922,9 +936,10 @@ export class ChimeraChatView extends ItemView {
     this.permissionDropdownEl.innerHTML = "";
 
     const modes = [
-      { value: "safe", icon: "shield", title: "Safe", desc: "Asks permission before write operations" },
-      { value: "plan", icon: "clipboard-list", title: "Plan", desc: "Explores code and presents a plan first" },
-      { value: "yolo", icon: "zap", title: "YOLO", desc: "All operations auto-approved" },
+      { value: PermissionMode.AskBeforeEdits, icon: "hand", title: "Ask before edits", desc: "Claude will ask for approval before making each edit" },
+      { value: PermissionMode.EditAutomatically, icon: "code", title: "Edit automatically", desc: "Claude will edit your selected text or the whole file" },
+      { value: PermissionMode.Plan, icon: "clipboard-list", title: "Plan mode", desc: "Claude will explore the code and present a plan before editing" },
+      { value: PermissionMode.BypassPermissions, icon: "zap", title: "Bypass permissions", desc: "Claude will not ask for approval before running potentially dangerous commands" },
     ];
 
     for (const mode of modes) {

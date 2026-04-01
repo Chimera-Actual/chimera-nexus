@@ -44,7 +44,7 @@ function makeSettings(overrides: Partial<ChimeraSettings> = {}): ChimeraSettings
     authMethod: AuthMethod.CLI,
     apiKey: "",
     cliPath: "claude",
-    permissionMode: PermissionMode.Safe,
+    permissionMode: PermissionMode.AskBeforeEdits,
     memoryPinnedBudget: 2000,
     memoryTreeBudget: 500,
     maxConcurrentSessions: 2,
@@ -312,20 +312,20 @@ describe("MemoryInjector", () => {
 
     const ctx = await injector.buildSystemPromptContext();
 
-    // Safe mode (default in makeSettings) should ask before writes
-    expect(ctx).toContain("Ask before any write operations.");
+    // AskBeforeEdits mode (default in makeSettings) should ask before edits
+    expect(ctx).toContain("Ask for approval before making each edit.");
   });
 
-  it("buildSystemPromptContext uses YOLO permission instruction", async () => {
-    const yoloInjector = new MemoryInjector(
+  it("buildSystemPromptContext uses BypassPermissions permission instruction", async () => {
+    const bypassInjector = new MemoryInjector(
       vault,
-      makeSettings({ permissionMode: PermissionMode.YOLO })
+      makeSettings({ permissionMode: PermissionMode.BypassPermissions })
     );
 
     (vault.adapter.exists as jest.Mock).mockResolvedValue(false);
     (vault.adapter.list as jest.Mock).mockResolvedValue({ files: [], folders: [] });
 
-    const ctx = await yoloInjector.buildSystemPromptContext();
+    const ctx = await bypassInjector.buildSystemPromptContext();
     expect(ctx).toContain("All operations are pre-approved.");
   });
 });

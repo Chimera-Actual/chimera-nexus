@@ -16,7 +16,7 @@ function makeSettings(
     authMethod: AuthMethod.CLI,
     apiKey: "",
     cliPath: "claude",
-    permissionMode: PermissionMode.Safe,
+    permissionMode: PermissionMode.AskBeforeEdits,
     memoryPinnedBudget: 2000,
     memoryTreeBudget: 500,
     maxConcurrentSessions: 2,

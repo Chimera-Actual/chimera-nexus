@@ -486,9 +486,10 @@
   cursor: pointer;
   transition: color 0.15s ease;
 }
-.chimera-permission-btn.mode-safe { color: var(--color-green, #4caf50); }
+.chimera-permission-btn.mode-ask { color: var(--text-muted); }
+.chimera-permission-btn.mode-auto { color: var(--color-green, #4caf50); }
 .chimera-permission-btn.mode-plan { color: rgb(92, 148, 140); }
-.chimera-permission-btn.mode-yolo { color: var(--chimera-brand); }
+.chimera-permission-btn.mode-bypass { color: var(--chimera-brand); }
 .chimera-permission-dropdown {
   position: absolute;
   bottom: 100%;

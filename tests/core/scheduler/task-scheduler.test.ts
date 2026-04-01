@@ -63,7 +63,7 @@ function makeTask(overrides: Partial<ScheduledTask> = {}): ScheduledTask {
     scheduleHuman: "Weekdays at 9 AM",
     model: "claude-opus-4-5",
     agent: "atlas",
-    permissionMode: PermissionMode.Safe,
+    permissionMode: PermissionMode.AskBeforeEdits,
     maxDurationSeconds: 300,
     created: "2024-01-01T00:00:00.000Z",
     lastRun: "",
