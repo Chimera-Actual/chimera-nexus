@@ -54,7 +54,7 @@
 .chimera-header {
   display: flex;
   align-items: center;
-  padding: 0 12px 12px 12px;
+  padding: 8px 12px 12px 12px;
 }
 
 .chimera-title-slot {
@@ -92,7 +92,7 @@
 .chimera-messages {
   flex: 1;
   overflow-y: auto;
-  padding: 12px 0;
+  padding: 12px;
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -111,7 +111,7 @@
 
 .chimera-welcome-greeting {
   font-size: 28px;
-  font-weight: 300;
+  font-weight: 400;
   color: var(--text-muted);
   letter-spacing: -0.01em;
 }
@@ -121,7 +121,7 @@
    --------------------------------------------------------------------------- */
 
 .chimera-message {
-  padding: 10px 14px;
+  padding: 12px 16px;
   border-radius: 8px;
   max-width: 95%;
   word-wrap: break-word;
@@ -182,11 +182,14 @@
   justify-content: center;
   cursor: pointer;
   color: var(--text-faint);
-  transition: color 0.15s ease;
+  transition: color 0.15s ease, background 0.15s ease;
+  padding: 4px;
+  border-radius: 4px;
 }
 
 .chimera-header-btn:hover {
   color: var(--text-normal);
+  background: var(--background-modifier-hover);
 }
 
 .chimera-header-btn svg {
@@ -200,7 +203,7 @@
 
 .chimera-input-container {
   position: relative;
-  padding: 12px 0 0 0;
+  padding: 12px 12px 0 12px;
 }
 
 /* ---------------------------------------------------------------------------
@@ -217,29 +220,34 @@
   background: var(--background-primary);
 }
 
-.chimera-input {
+.chimera-container .chimera-input-wrapper .chimera-input {
   width: 100%;
   flex: 1 1 0;
   min-height: 60px;
   resize: none;
-  padding: 8px 10px 10px 10px;
-  border: none !important;
+  padding: 8px 12px 12px 12px;
+  border: none;
   border-radius: 6px;
-  background: transparent !important;
+  background: transparent;
   color: var(--text-normal);
   font-family: inherit;
   font-size: 14px;
   line-height: 1.4;
-  box-shadow: none !important;
+  box-shadow: none;
   overflow-y: auto;
 }
 
-.chimera-input:hover,
-.chimera-input:focus {
-  outline: none !important;
-  border: none !important;
-  background: transparent !important;
-  box-shadow: none !important;
+.chimera-container .chimera-input-wrapper .chimera-input:hover,
+.chimera-container .chimera-input-wrapper .chimera-input:focus {
+  outline: none;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+}
+
+.chimera-container .chimera-input-wrapper .chimera-input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .chimera-input::placeholder {
@@ -253,9 +261,9 @@
 .chimera-input-toolbar {
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: 8px;
   flex-shrink: 0;
-  padding: 4px 6px 6px 6px;
+  padding: 4px 8px 8px 8px;
 }
 
 /* ---------------------------------------------------------------------------
@@ -292,7 +300,6 @@
   position: absolute;
   bottom: 100%;
   left: 0;
-  margin-bottom: 0;
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -403,58 +410,80 @@
 }
 
 /* ---------------------------------------------------------------------------
-   Permission toggle (like Claudian's Safe/YOLO toggle switch)
+   Permission selector (Claude Code style)
    --------------------------------------------------------------------------- */
 
-.chimera-permission-toggle {
+.chimera-permission-selector {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 6px;
   margin-left: auto;
-  padding-left: 12px;
-  padding-right: 8px;
 }
-
-.chimera-permission-label {
-  font-size: 11px;
-  color: var(--text-muted);
-  min-width: 28px;
-}
-
-.chimera-toggle-switch {
-  width: 32px;
-  height: 18px;
-  border-radius: 9px;
-  background: var(--background-modifier-border);
+.chimera-permission-btn {
+  padding: 4px 8px;
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: 4px;
   cursor: pointer;
-  position: relative;
-  transition: background 0.2s ease;
-  flex-shrink: 0;
+  transition: color 0.15s ease;
 }
-
-.chimera-toggle-switch::after {
-  content: '';
+.chimera-permission-btn.mode-safe { color: var(--color-green, #4caf50); }
+.chimera-permission-btn.mode-plan { color: rgb(92, 148, 140); }
+.chimera-permission-btn.mode-yolo { color: var(--chimera-brand); }
+.chimera-permission-dropdown {
   position: absolute;
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  background: var(--text-muted);
-  top: 2px;
-  left: 2px;
-  transition: transform 0.2s ease, background 0.2s ease;
+  bottom: 100%;
+  right: 0;
+  margin-bottom: 4px;
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 8px;
+  box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+  width: 260px;
+  padding: 4px;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.15s ease, visibility 0.15s ease;
 }
-
-.chimera-toggle-switch:hover {
+.chimera-permission-selector:hover .chimera-permission-dropdown {
+  opacity: 1;
+  visibility: visible;
+}
+.chimera-permission-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.1s ease;
+}
+.chimera-permission-option:hover {
   background: var(--background-modifier-hover);
 }
-
-.chimera-toggle-switch.active {
-  background: rgba(var(--chimera-brand-rgb), 0.3);
+.chimera-permission-option.selected {
+  background: rgba(var(--chimera-brand-rgb), 0.1);
 }
-
-.chimera-toggle-switch.active::after {
-  transform: translateX(14px);
-  background: var(--chimera-brand);
+.chimera-permission-option-icon {
+  display: flex;
+  align-items: center;
+  color: var(--text-muted);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.chimera-permission-option-icon svg { width: 16px; height: 16px; }
+.chimera-permission-option.selected .chimera-permission-option-icon { color: var(--chimera-brand); }
+.chimera-permission-option-text { flex: 1; }
+.chimera-permission-option-title {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-normal);
+}
+.chimera-permission-option-desc {
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.3;
 }
 
 /* ---------------------------------------------------------------------------
@@ -760,7 +789,8 @@ body.theme-light .chimera-code-wrapper pre {
    --------------------------------------------------------------------------- */
 
 .chimera-tool-header:focus-visible,
-.chimera-header-btn:focus-visible {
+.chimera-header-btn:focus-visible,
+.chimera-permission-btn:focus-visible {
   outline: 2px solid var(--interactive-accent);
   outline-offset: 2px;
   border-radius: 4px;
@@ -886,12 +916,12 @@ body.theme-light .chimera-message-content :not(pre) > code {
   gap: 6px;
 }
 .chimera-effort-label-text {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--text-muted);
 }
 .chimera-effort-current {
   padding: 3px 8px;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--chimera-brand);
   font-weight: 500;
   cursor: pointer;
@@ -902,7 +932,6 @@ body.theme-light .chimera-message-content :not(pre) > code {
   position: absolute;
   left: 0;
   bottom: 100%;
-  margin-bottom: 0;
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -921,7 +950,7 @@ body.theme-light .chimera-message-content :not(pre) > code {
 }
 .chimera-effort-option {
   padding: 3px 8px;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--text-muted);
   cursor: pointer;
   border-radius: 3px;
@@ -992,18 +1021,6 @@ body.theme-light .chimera-message-content :not(pre) > code {
 .chimera-external-context-hint {
   font-size: 11px;
   color: var(--text-muted);
-}
-
-/* ---------------------------------------------------------------------------
-   Plan mode on permission toggle
-   --------------------------------------------------------------------------- */
-
-.chimera-toggle-switch.plan {
-  background: rgba(92, 148, 140, 0.3);
-}
-.chimera-toggle-switch.plan::after {
-  transform: translateX(7px);
-  background: rgb(92, 148, 140);
 }
 
 /* ---------------------------------------------------------------------------

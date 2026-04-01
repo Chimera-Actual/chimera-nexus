@@ -105,8 +105,8 @@ export class ChimeraChatView extends ItemView {
   private historyMenuEl!: HTMLElement | null;
   private agentLabelEl!: HTMLElement;
   private agentDropdownEl!: HTMLElement;
-  private permissionLabelEl!: HTMLElement;
-  private permissionToggleEl!: HTMLElement;
+  private permissionBtnEl!: HTMLElement;
+  private permissionDropdownEl!: HTMLElement;
   private modelSelectorEl!: HTMLElement;
   private modelLabelEl!: HTMLElement;
   private modelDropdownEl!: HTMLElement;
@@ -126,6 +126,7 @@ export class ChimeraChatView extends ItemView {
   private agents: AgentDefinition[] = [];
   private isStreaming = false;
   private renderComponent: Component = new Component();
+  private outsideClickHandler: ((evt: MouseEvent) => void) | null = null;
 
   // -------------------------------------------------------------------------
   // Constructor
@@ -210,17 +211,6 @@ export class ChimeraChatView extends ItemView {
     const navRow = inputContainer.createDiv({ cls: "chimera-input-nav-row" });
     const navActions = navRow.createDiv({ cls: "chimera-nav-actions" });
 
-    // New session button
-    const newBtn = navActions.createEl("span", { cls: "chimera-header-btn" });
-    setIcon(newBtn, "square-plus");
-    newBtn.title = "New session";
-    newBtn.addEventListener("click", () => {
-      this.startNewSession();
-      this.messagesEl.innerHTML = "";
-      this.showWelcome();
-      this.updateStatus("New session started.");
-    });
-
     // New conversation button
     const editBtn = navActions.createEl("span", { cls: "chimera-header-btn" });
     setIcon(editBtn, "square-pen");
@@ -278,6 +268,15 @@ export class ChimeraChatView extends ItemView {
         }
       }
 
+      if (evt.key === "Escape" && this.isStreaming) {
+        evt.preventDefault();
+        this.plugin.sdkWrapper.abort();
+        this.isStreaming = false;
+        this.inputEl.disabled = false;
+        this.updateStatus("Cancelled");
+        return;
+      }
+
       if (evt.key === "Enter" && !evt.shiftKey) {
         evt.preventDefault();
         this.handleSend();
@@ -303,8 +302,8 @@ export class ChimeraChatView extends ItemView {
     // Agent selector (hover dropdown like Claudian's model dropdown)
     this.buildAgentSelector(toolbar);
 
-    // Permission toggle (Safe/Plan/YOLO toggle switch)
-    this.buildPermissionToggle(toolbar);
+    // Permission selector (Claude Code-style popup)
+    this.buildPermissionSelector(toolbar);
 
     // ------------------------------------------------------------------
     // 4. Status bar
@@ -329,6 +328,24 @@ export class ChimeraChatView extends ItemView {
 
     const entries = this.plugin.sessionIndex.getEntries();
     this.refreshHistoryMenu(entries);
+
+    // Outside-click handler to dismiss history and external context dropdowns
+    this.outsideClickHandler = (evt: MouseEvent) => {
+      // Close history menu if clicking outside
+      if (this.historyMenuEl?.hasClass("is-visible")) {
+        if (!historyContainer.contains(evt.target as Node)) {
+          this.historyMenuEl.removeClass("is-visible");
+        }
+      }
+      // Close external context dropdown if clicking outside
+      if (this.externalContextDropdownEl?.hasClass("is-visible")) {
+        const extWrapper = this.externalContextDropdownEl.parentElement;
+        if (extWrapper && !extWrapper.contains(evt.target as Node)) {
+          this.externalContextDropdownEl.removeClass("is-visible");
+        }
+      }
+    };
+    document.addEventListener("click", this.outsideClickHandler);
   }
 
   /**
@@ -339,6 +356,9 @@ export class ChimeraChatView extends ItemView {
    * summary note.
    */
   async onClose(): Promise<void> {
+    if (this.outsideClickHandler) {
+      document.removeEventListener("click", this.outsideClickHandler);
+    }
     this.renderComponent.unload();
 
     if (this.currentSession && this.currentSession.messages.length > 0) {
@@ -364,9 +384,8 @@ export class ChimeraChatView extends ItemView {
             this.app,
             `[chimera] Session ${this.currentSession.sessionId.slice(0, 8)} completed`
           );
-          if (committed) {
-            console.log("Chimera: auto-committed session data");
-          }
+          // Auto-commit succeeded, no action needed.
+          void committed;
         } catch {
           // Best effort, ignore failures.
         }
@@ -464,6 +483,7 @@ export class ChimeraChatView extends ItemView {
     this.addMessage("user", finalText);
     this.inputEl.value = "";
     this.isStreaming = true;
+    this.inputEl.disabled = true;
     this.updateStatus("Thinking...");
 
     // Track in current session.
@@ -501,6 +521,8 @@ export class ChimeraChatView extends ItemView {
       },
       onComplete: async (completeText) => {
         this.isStreaming = false;
+        this.inputEl.disabled = false;
+        this.inputEl.focus();
         this.updateStatus("Ready");
 
         // Add to session.
@@ -534,6 +556,8 @@ export class ChimeraChatView extends ItemView {
       },
       onError: (error) => {
         this.isStreaming = false;
+        this.inputEl.disabled = false;
+        this.inputEl.focus();
         this.updateStreamingMessage(assistantMsgEl, `Error: ${error.message}`);
         this.updateStatus("Error occurred");
       },
@@ -786,52 +810,62 @@ export class ChimeraChatView extends ItemView {
   }
 
   /**
-   * Builds the permission toggle switch in the input toolbar (like Claudian's
-   * Safe/YOLO toggle).
+   * Builds the permission popup selector in the input toolbar (Claude Code style).
    */
-  private buildPermissionToggle(toolbar: HTMLElement): void {
-    const toggle = toolbar.createDiv({ cls: "chimera-permission-toggle" });
-    this.permissionLabelEl = toggle.createSpan({ cls: "chimera-permission-label" });
-    this.permissionToggleEl = toggle.createDiv({ cls: "chimera-toggle-switch" });
-    this.updatePermissionDisplay();
-    this.permissionToggleEl.addEventListener("click", () => this.togglePermission());
+  private buildPermissionSelector(toolbar: HTMLElement): void {
+    const wrapper = toolbar.createDiv({ cls: "chimera-permission-selector" });
+
+    // Current mode button (shows in toolbar)
+    this.permissionBtnEl = wrapper.createDiv({ cls: "chimera-permission-btn" });
+    this.updatePermissionButton();
+
+    // Dropdown popup (hidden, shows on hover)
+    this.permissionDropdownEl = wrapper.createDiv({ cls: "chimera-permission-dropdown" });
+    this.buildPermissionOptions();
   }
 
   /**
-   * Updates the permission toggle visual state to match the current setting.
+   * Updates the permission button label and class to match the current setting.
    */
-  private updatePermissionDisplay(): void {
+  private updatePermissionButton(): void {
     const mode = this.plugin.settings.permissionMode;
-    this.permissionToggleEl.removeClass("active");
-    this.permissionToggleEl.removeClass("plan");
-
-    if (mode === PermissionMode.YOLO) {
-      this.permissionToggleEl.addClass("active");
-      this.permissionLabelEl.textContent = "YOLO";
-    } else if (mode === PermissionMode.Plan) {
-      this.permissionToggleEl.addClass("plan");
-      this.permissionLabelEl.textContent = "Plan";
-    } else {
-      this.permissionLabelEl.textContent = "Safe";
-    }
+    const labels: Record<string, string> = {
+      safe: "Safe", plan: "Plan", yolo: "YOLO",
+    };
+    this.permissionBtnEl.textContent = labels[mode] || "Safe";
+    this.permissionBtnEl.className = `chimera-permission-btn mode-${mode}`;
   }
 
   /**
-   * Cycles between Safe, Plan, and YOLO permission modes.
+   * Rebuilds the permission dropdown options to match the current selection.
    */
-  private async togglePermission(): Promise<void> {
-    const current = this.plugin.settings.permissionMode;
-    let next: PermissionMode;
-    if (current === PermissionMode.Safe) {
-      next = PermissionMode.Plan;
-    } else if (current === PermissionMode.Plan) {
-      next = PermissionMode.YOLO;
-    } else {
-      next = PermissionMode.Safe;
+  private buildPermissionOptions(): void {
+    this.permissionDropdownEl.innerHTML = "";
+
+    const modes = [
+      { value: "safe", icon: "shield", title: "Safe", desc: "Asks permission before write operations" },
+      { value: "plan", icon: "clipboard-list", title: "Plan", desc: "Explores code and presents a plan first" },
+      { value: "yolo", icon: "zap", title: "YOLO", desc: "All operations auto-approved" },
+    ];
+
+    for (const mode of modes) {
+      const opt = this.permissionDropdownEl.createDiv({ cls: "chimera-permission-option" });
+      if (this.plugin.settings.permissionMode === mode.value) opt.addClass("selected");
+
+      const iconEl = opt.createSpan({ cls: "chimera-permission-option-icon" });
+      setIcon(iconEl, mode.icon);
+
+      const textCol = opt.createDiv({ cls: "chimera-permission-option-text" });
+      textCol.createDiv({ cls: "chimera-permission-option-title", text: mode.title });
+      textCol.createDiv({ cls: "chimera-permission-option-desc", text: mode.desc });
+
+      opt.addEventListener("click", async () => {
+        this.plugin.settings.permissionMode = mode.value as PermissionMode;
+        await this.plugin.saveSettings();
+        this.updatePermissionButton();
+        this.buildPermissionOptions();
+      });
     }
-    this.plugin.settings.permissionMode = next;
-    await this.plugin.saveSettings();
-    this.updatePermissionDisplay();
   }
 
   // -------------------------------------------------------------------------
@@ -1367,11 +1401,12 @@ class AgentCreationModal extends Modal {
         btn.setButtonText("Create Agent");
         btn.setCta();
         btn.onClick(async () => {
-          if (!name.trim()) {
-            new Notice("Agent name is required");
+          const safeName = name.trim().toLowerCase().replace(/[^a-z0-9-]/g, "-").replace(/^-+|-+$/g, "");
+          if (!safeName || !/^[a-z0-9][a-z0-9-]*$/.test(safeName)) {
+            new Notice("Agent name must start with a letter/number and contain only letters, numbers, and hyphens");
             return;
           }
-          await this.onSubmit(name.trim(), description.trim(), model, systemPrompt.trim());
+          await this.onSubmit(safeName, description.trim(), model, systemPrompt.trim());
           this.close();
         });
       });
