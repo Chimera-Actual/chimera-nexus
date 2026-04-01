@@ -19,6 +19,8 @@ import { SessionIndex } from "./features/sessions/session-index";
 import { AgentLoader } from "./core/claude-compat/agent-loader";
 import { SettingsLoader } from "./core/claude-compat/settings-loader";
 import { HookManager } from "./core/claude-compat/hook-manager";
+import { SlashCommandRegistry } from "./commands/slash-commands";
+import { CommandLoader } from "./core/claude-compat/command-loader";
 
 // ---------------------------------------------------------------------------
 // Plugin class
@@ -60,6 +62,12 @@ export default class ChimeraNexusPlugin extends Plugin {
 
   /** Registers and fires lifecycle hook handlers. */
   hookManager!: HookManager;
+
+  /** Central registry for built-in and CC slash commands. */
+  slashCommands!: SlashCommandRegistry;
+
+  /** Discovers command definitions from the vault commands folder. */
+  commandLoader!: CommandLoader;
 
   // -------------------------------------------------------------------------
   // Lifecycle
@@ -125,6 +133,16 @@ export default class ChimeraNexusPlugin extends Plugin {
       this.hookManager.loadHooks(resolvedSettings.hooks);
     } catch (err) {
       console.warn("Failed to load Claude Code settings:", err);
+    }
+
+    // Initialize slash commands.
+    this.commandLoader = new CommandLoader(this.app.vault);
+    this.slashCommands = new SlashCommandRegistry(this.app.vault, this.settings);
+    this.slashCommands.registerBuiltins();
+    try {
+      await this.slashCommands.registerCCCommands();
+    } catch (err) {
+      console.warn("Failed to load CC commands:", err);
     }
 
     // Rebuild session index on startup.

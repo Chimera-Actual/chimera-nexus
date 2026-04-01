@@ -27,6 +27,8 @@ import { AgentLoader } from "../../core/claude-compat/agent-loader";
 import { HookManager } from "../../core/claude-compat/hook-manager";
 import { detectMention } from "./mention-detector";
 import { AgentSelector } from "./agent-selector";
+import { SlashCommandRegistry, SlashCommandContext } from "../../commands/slash-commands";
+import { tryAutoCommit } from "../../utils/vault-helpers";
 
 // ---------------------------------------------------------------------------
 // View type constant
@@ -49,6 +51,7 @@ interface ChimeraNexusPluginRef {
   sessionIndex: SessionIndex;
   agentLoader: AgentLoader;
   hookManager: HookManager;
+  slashCommands: SlashCommandRegistry;
 }
 
 // ---------------------------------------------------------------------------
@@ -266,6 +269,19 @@ export class ChimeraChatView extends ItemView {
           this.app.vault,
           summary,
         );
+
+        // Auto-commit via Obsidian Git if available.
+        try {
+          const committed = await tryAutoCommit(
+            this.app,
+            `[chimera] Session ${this.currentSession.sessionId.slice(0, 8)} completed`
+          );
+          if (committed) {
+            console.log("Chimera: auto-committed session data");
+          }
+        } catch {
+          // Best effort, ignore failures.
+        }
       } catch (err) {
         console.warn("Failed post-session processing:", err);
       }
@@ -304,6 +320,27 @@ export class ChimeraChatView extends ItemView {
   async handleSend(): Promise<void> {
     const text = this.inputEl.value.trim();
     if (!text || this.isStreaming) return;
+
+    // Check for slash command before anything else.
+    if (this.plugin.slashCommands.isSlashCommand(text)) {
+      this.addMessage("user", text);
+      this.inputEl.value = "";
+
+      const context: SlashCommandContext = {
+        vault: this.app.vault,
+        settings: this.plugin.settings,
+        addChatMessage: (role, content) => this.addMessage(role, content),
+      };
+
+      try {
+        const result = await this.plugin.slashCommands.execute(text, context);
+        this.addMessage("assistant", result);
+      } catch (err) {
+        const errorMsg = err instanceof Error ? err.message : String(err);
+        this.addMessage("assistant", `Command error: ${errorMsg}`);
+      }
+      return;
+    }
 
     // Check for @mention.
     const agentNames = this.agents.map((a) => a.name);
@@ -561,6 +598,8 @@ export class ChimeraChatView extends ItemView {
     try {
       // Load the full session from the store.
       const session = await this.plugin.sessionStore.loadSession(entry.path);
+      session.status = "active";
+      session.updated = new Date().toISOString();
       this.currentSession = session;
 
       // Set the matching agent.
@@ -576,7 +615,8 @@ export class ChimeraChatView extends ItemView {
         this.addMessage(msg.role, msg.content);
       }
 
-      this.updateStatus(`Resumed session: ${session.title || session.sessionId.slice(0, 8)}`);
+      const sessionLabel = session.title || session.sessionId.slice(0, 8);
+      this.updateStatus(`Resumed session: ${sessionLabel}`);
     } catch (err) {
       console.warn("Failed to resume session:", err);
       new Notice("Failed to load session. Check console for details.");
