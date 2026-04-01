@@ -95,7 +95,7 @@ export async function listMarkdownFiles(
     const normalized = normalizePath(dir);
     const results: string[] = [];
 
-    async function recurse(currentDir: string): Promise<void> {
+    const recurse = async (currentDir: string): Promise<void> => {
       const listing = await vault.adapter.list(currentDir);
 
       for (const filePath of listing.files) {

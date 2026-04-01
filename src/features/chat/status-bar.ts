@@ -5,9 +5,6 @@
  * updates for running background agents.
  */
 
-/** Valid agent execution status values. */
-type AgentStatus = "running" | "completed" | "failed" | "queued";
-
 /**
  * Footer component that shows live agent execution status.
  */

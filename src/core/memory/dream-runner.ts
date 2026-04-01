@@ -42,10 +42,10 @@ const SPLIT_TOKEN_THRESHOLD = 2000;
 const MERGE_TOKEN_THRESHOLD = 100;
 
 /** Target minimum knowledge file count. */
-const TARGET_MIN_FILES = 15;
+const _TARGET_MIN_FILES = 15;
 
 /** Target maximum knowledge file count. */
-const TARGET_MAX_FILES = 25;
+const _TARGET_MAX_FILES = 25;
 
 /** Safety timeout: abort if a single dream run exceeds 10 minutes. */
 const DREAM_TIMEOUT_MS = 10 * 60 * 1000;

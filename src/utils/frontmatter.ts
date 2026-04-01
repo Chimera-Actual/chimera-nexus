@@ -40,7 +40,7 @@ export function parseFrontmatter(content: string): {
   let i = 0;
   while (i < lines.length) {
     const line = lines[i];
-    const match = line.match(/^(\w[\w\-]*)\s*:\s*(.*)/);
+    const match = line.match(/^(\w[\w-]*)\s*:\s*(.*)/);
     if (!match) {
       i++;
       continue;
@@ -154,7 +154,7 @@ function formatScalar(value: unknown): string {
   if (typeof value === "number") return String(value);
   const str = String(value);
   // Quote strings that contain special YAML characters
-  if (/[:#\[\]{}&*!|>%@`,]/.test(str) || str === "" || str === "true" || str === "false") {
+  if (/[:#[{}&*!|>%@`,\]]/.test(str) || str === "" || str === "true" || str === "false") {
     return `"${str.replace(/"/g, '\\"')}"`;
   }
   return str;
