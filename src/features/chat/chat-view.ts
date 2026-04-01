@@ -11,7 +11,7 @@
  * dropdown, and permission mode uses a toggle switch.
  */
 
-import { ItemView, Notice, WorkspaceLeaf, setIcon } from "obsidian";
+import { ItemView, Notice, WorkspaceLeaf, setIcon, MarkdownRenderer, Component } from "obsidian";
 
 import {
   ChimeraSettings,
@@ -32,6 +32,7 @@ import { SessionIndex } from "../../features/sessions/session-index";
 import { AgentLoader } from "../../core/claude-compat/agent-loader";
 import { HookManager } from "../../core/claude-compat/hook-manager";
 import { detectMention } from "./mention-detector";
+import { ChatRenderer } from "./chat-renderer";
 import { SlashCommandRegistry, SlashCommandContext } from "../../commands/slash-commands";
 import { tryAutoCommit } from "../../utils/vault-helpers";
 
@@ -106,6 +107,11 @@ export class ChimeraChatView extends ItemView {
   private agentDropdownEl!: HTMLElement;
   private permissionLabelEl!: HTMLElement;
   private permissionToggleEl!: HTMLElement;
+  private modelSelectorEl!: HTMLElement;
+  private modelLabelEl!: HTMLElement;
+  private modelDropdownEl!: HTMLElement;
+  private slashDropdownEl!: HTMLElement;
+  private slashSelectedIndex = -1;
 
   // -------------------------------------------------------------------------
   // State
@@ -116,6 +122,7 @@ export class ChimeraChatView extends ItemView {
   private currentAgent: AgentDefinition | null = null;
   private agents: AgentDefinition[] = [];
   private isStreaming = false;
+  private renderComponent: Component = new Component();
 
   // -------------------------------------------------------------------------
   // Constructor
@@ -161,6 +168,8 @@ export class ChimeraChatView extends ItemView {
    * dropdown, and permission toggle switch.
    */
   async onOpen(): Promise<void> {
+    this.renderComponent.load();
+
     const container = this.containerEl;
     container.empty();
 
@@ -233,25 +242,54 @@ export class ChimeraChatView extends ItemView {
     // 3b. Input wrapper (bordered box)
     const inputWrapper = inputContainer.createDiv({ cls: "chimera-input-wrapper" });
 
+    // Slash command dropdown (positioned above input wrapper)
+    this.slashDropdownEl = inputWrapper.createDiv({ cls: "chimera-slash-dropdown" });
+
     this.inputEl = inputWrapper.createEl("textarea", { cls: "chimera-input" });
     this.inputEl.placeholder = "How can I help you today?";
     this.inputEl.rows = 3;
     this.inputEl.setAttribute("dir", "auto");
 
-    // Enter to send, Shift+Enter for newline (NO send button)
+    // Keyboard handler for slash dropdown navigation and send
     this.inputEl.addEventListener("keydown", (evt: KeyboardEvent) => {
+      if (this.slashDropdownEl.hasClass("is-visible")) {
+        if (evt.key === "ArrowDown") {
+          evt.preventDefault();
+          this.navigateSlashDropdown(1);
+          return;
+        }
+        if (evt.key === "ArrowUp") {
+          evt.preventDefault();
+          this.navigateSlashDropdown(-1);
+          return;
+        }
+        if (evt.key === "Enter") {
+          evt.preventDefault();
+          this.selectSlashCommand();
+          return;
+        }
+        if (evt.key === "Escape") {
+          evt.preventDefault();
+          this.hideSlashDropdown();
+          return;
+        }
+      }
+
       if (evt.key === "Enter" && !evt.shiftKey) {
         evt.preventDefault();
         this.handleSend();
       }
     });
 
+    this.inputEl.addEventListener("input", () => {
+      this.handleSlashAutocomplete();
+    });
+
     // 3c. Input toolbar (inside input wrapper, at bottom)
     const toolbar = inputWrapper.createDiv({ cls: "chimera-input-toolbar" });
 
-    // Model label (like Claudian's model selector, read-only for now)
-    const modelLabel = toolbar.createDiv({ cls: "chimera-model-label" });
-    modelLabel.textContent = "Sonnet";
+    // Model selector (Claudian hover dropdown pattern)
+    this.buildModelSelector(toolbar);
 
     // Agent selector (hover dropdown like Claudian's model dropdown)
     this.buildAgentSelector(toolbar);
@@ -292,6 +330,8 @@ export class ChimeraChatView extends ItemView {
    * summary note.
    */
   async onClose(): Promise<void> {
+    this.renderComponent.unload();
+
     if (this.currentSession && this.currentSession.messages.length > 0) {
       try {
         this.currentSession.status = "completed";
@@ -340,16 +380,26 @@ export class ChimeraChatView extends ItemView {
    * @param content - Plain-text message content to display.
    */
   addMessage(role: "user" | "assistant", content: string): void {
-    this.clearWelcome();
-
     const msgEl = this.messagesEl.createDiv({
       cls: `chimera-message chimera-message-${role}`,
     });
-
     const contentEl = msgEl.createDiv({ cls: "chimera-message-content" });
-    contentEl.textContent = content;
+
+    if (role === "assistant") {
+      // Render markdown for assistant messages
+      MarkdownRenderer.render(
+        this.app,
+        content,
+        contentEl,
+        "",
+        this.renderComponent,
+      );
+    } else {
+      contentEl.textContent = content;
+    }
 
     this.messagesEl.scrollTop = this.messagesEl.scrollHeight;
+    this.clearWelcome();
   }
 
   /**
@@ -491,9 +541,89 @@ export class ChimeraChatView extends ItemView {
     this.statusTextEl.textContent = text;
   }
 
+  /**
+   * Renders a tool call in the messages area and scrolls to the bottom.
+   *
+   * @param toolName - Name of the tool (e.g. `"Read"`, `"Bash"`).
+   * @param summary  - One-line summary shown next to the tool name.
+   * @param status   - Current execution status for the status icon.
+   * @param content  - Optional detailed output shown when expanded.
+   * @returns The root element of the rendered tool call block.
+   */
+  addToolCall(toolName: string, summary: string, status: "running" | "completed" | "error", content?: string): HTMLElement {
+    const el = ChatRenderer.renderToolCall(this.messagesEl, toolName, summary, status, content);
+    this.messagesEl.scrollTop = this.messagesEl.scrollHeight;
+    return el;
+  }
+
+  /**
+   * Renders a thinking indicator in the messages area and scrolls to the bottom.
+   *
+   * @param isActive - Whether the model is currently thinking (shows pulse animation).
+   * @param content  - Optional thinking text shown when expanded.
+   * @param duration - Optional duration string (e.g. `"3.2s"`).
+   * @returns The root element of the rendered thinking block.
+   */
+  addThinkingBlock(isActive: boolean, content?: string, duration?: string): HTMLElement {
+    const el = ChatRenderer.renderThinkingBlock(this.messagesEl, isActive, content, duration);
+    this.messagesEl.scrollTop = this.messagesEl.scrollHeight;
+    return el;
+  }
+
   // -------------------------------------------------------------------------
   // Private helpers - UI builders
   // -------------------------------------------------------------------------
+
+  /**
+   * Builds the model hover-dropdown in the input toolbar (Claudian pattern).
+   */
+  private buildModelSelector(toolbar: HTMLElement): void {
+    const wrapper = toolbar.createDiv({ cls: "chimera-model-selector" });
+
+    this.modelLabelEl = wrapper.createDiv({ cls: "chimera-model-btn" });
+    const labelText = this.modelLabelEl.createSpan();
+    labelText.textContent = this.getModelDisplayName(this.plugin.settings.model);
+    const chevron = this.modelLabelEl.createSpan({ cls: "chimera-model-chevron" });
+    setIcon(chevron, "chevron-up");
+
+    this.modelDropdownEl = wrapper.createDiv({ cls: "chimera-model-dropdown" });
+    this.refreshModelDropdown();
+  }
+
+  /**
+   * Refreshes the model dropdown options to match the current selection.
+   */
+  private refreshModelDropdown(): void {
+    this.modelDropdownEl.innerHTML = "";
+    const models = ["haiku", "sonnet", "opus"];
+    const displayNames: Record<string, string> = {
+      haiku: "Haiku",
+      sonnet: "Sonnet",
+      opus: "Opus",
+    };
+
+    for (const model of models) {
+      const opt = this.modelDropdownEl.createDiv({ cls: "chimera-model-option" });
+      opt.textContent = displayNames[model] || model;
+      if (this.plugin.settings.model === model) opt.addClass("selected");
+      opt.addEventListener("click", async () => {
+        this.plugin.settings.model = model;
+        await this.plugin.saveSettings();
+        // Update label
+        const label = this.modelLabelEl.querySelector("span:first-child");
+        if (label) label.textContent = displayNames[model] || model;
+        this.refreshModelDropdown();
+      });
+    }
+  }
+
+  /**
+   * Returns the user-facing display name for a model key.
+   */
+  private getModelDisplayName(model: string): string {
+    const names: Record<string, string> = { haiku: "Haiku", sonnet: "Sonnet", opus: "Opus" };
+    return names[model] || model;
+  }
 
   /**
    * Builds the agent hover-dropdown in the input toolbar (like Claudian's
@@ -714,7 +844,14 @@ export class ChimeraChatView extends ItemView {
    * @param content - The full accumulated response text so far.
    */
   private updateStreamingMessage(el: HTMLElement, content: string): void {
-    el.textContent = content;
+    el.innerHTML = "";
+    MarkdownRenderer.render(
+      this.app,
+      content,
+      el,
+      "",
+      this.renderComponent,
+    );
     this.messagesEl.scrollTop = this.messagesEl.scrollHeight;
   }
 
@@ -921,5 +1058,95 @@ export class ChimeraChatView extends ItemView {
         this.updateStatus("Error occurred");
       },
     });
+  }
+
+  // -------------------------------------------------------------------------
+  // Private helpers - slash command autocomplete
+  // -------------------------------------------------------------------------
+
+  /**
+   * Checks the current input value and shows/hides the slash command
+   * autocomplete dropdown based on whether the text starts with `/` and
+   * has no spaces (i.e. the user is still typing the command name).
+   */
+  private handleSlashAutocomplete(): void {
+    const text = this.inputEl.value;
+    if (text.startsWith("/") && !text.includes(" ")) {
+      const query = text.slice(1).toLowerCase();
+      const commands = this.plugin.slashCommands.listCommands();
+      const filtered = query
+        ? commands.filter(c => c.name.toLowerCase().startsWith(query))
+        : commands;
+
+      if (filtered.length > 0) {
+        this.showSlashDropdown(filtered);
+      } else {
+        this.hideSlashDropdown();
+      }
+    } else {
+      this.hideSlashDropdown();
+    }
+  }
+
+  /**
+   * Populates and shows the slash command dropdown with the given commands.
+   *
+   * @param commands - Filtered list of matching slash commands.
+   */
+  private showSlashDropdown(commands: Array<{name: string; description: string}>): void {
+    this.slashDropdownEl.innerHTML = "";
+    this.slashSelectedIndex = 0;
+
+    commands.forEach((cmd, i) => {
+      const item = this.slashDropdownEl.createDiv({ cls: "chimera-slash-item" });
+      if (i === 0) item.addClass("is-selected");
+      item.createDiv({ cls: "chimera-slash-item-name", text: `/${cmd.name}` });
+      if (cmd.description) {
+        item.createDiv({ cls: "chimera-slash-item-desc", text: cmd.description });
+      }
+      item.addEventListener("click", () => {
+        this.inputEl.value = `/${cmd.name} `;
+        this.hideSlashDropdown();
+        this.inputEl.focus();
+      });
+    });
+
+    this.slashDropdownEl.addClass("is-visible");
+  }
+
+  /**
+   * Hides the slash command dropdown and resets selection state.
+   */
+  private hideSlashDropdown(): void {
+    this.slashDropdownEl.removeClass("is-visible");
+    this.slashSelectedIndex = -1;
+  }
+
+  /**
+   * Moves the selection highlight up or down in the slash dropdown.
+   *
+   * @param direction - `1` for down, `-1` for up.
+   */
+  private navigateSlashDropdown(direction: number): void {
+    const items = this.slashDropdownEl.querySelectorAll(".chimera-slash-item");
+    if (items.length === 0) return;
+
+    items[this.slashSelectedIndex]?.removeClass("is-selected");
+    this.slashSelectedIndex = (this.slashSelectedIndex + direction + items.length) % items.length;
+    items[this.slashSelectedIndex]?.addClass("is-selected");
+    items[this.slashSelectedIndex]?.scrollIntoView({ block: "nearest" });
+  }
+
+  /**
+   * Selects the currently highlighted slash command and fills the input.
+   */
+  private selectSlashCommand(): void {
+    const items = this.slashDropdownEl.querySelectorAll(".chimera-slash-item-name");
+    if (this.slashSelectedIndex >= 0 && this.slashSelectedIndex < items.length) {
+      const name = items[this.slashSelectedIndex].textContent || "";
+      this.inputEl.value = name + " ";
+      this.hideSlashDropdown();
+      this.inputEl.focus();
+    }
   }
 }
