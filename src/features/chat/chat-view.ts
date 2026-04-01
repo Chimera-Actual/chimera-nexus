@@ -11,7 +11,7 @@
  * dropdown, and permission mode uses a toggle switch.
  */
 
-import { ItemView, Notice, WorkspaceLeaf, setIcon, MarkdownRenderer, Component } from "obsidian";
+import { ItemView, Notice, WorkspaceLeaf, setIcon, MarkdownRenderer, Component, Modal, Setting, App } from "obsidian";
 
 import {
   ChimeraSettings,
@@ -110,6 +110,9 @@ export class ChimeraChatView extends ItemView {
   private modelSelectorEl!: HTMLElement;
   private modelLabelEl!: HTMLElement;
   private modelDropdownEl!: HTMLElement;
+  private effortLabelEl!: HTMLElement;
+  private effortDropdownEl!: HTMLElement;
+  private externalContextDropdownEl!: HTMLElement;
   private slashDropdownEl!: HTMLElement;
   private slashSelectedIndex = -1;
 
@@ -291,10 +294,16 @@ export class ChimeraChatView extends ItemView {
     // Model selector (Claudian hover dropdown pattern)
     this.buildModelSelector(toolbar);
 
+    // Effort selector (Claudian thinking-selector pattern)
+    this.buildEffortSelector(toolbar);
+
+    // External context folder button
+    this.buildExternalContextSelector(toolbar);
+
     // Agent selector (hover dropdown like Claudian's model dropdown)
     this.buildAgentSelector(toolbar);
 
-    // Permission toggle (Safe/YOLO toggle switch)
+    // Permission toggle (Safe/Plan/YOLO toggle switch)
     this.buildPermissionToggle(toolbar);
 
     // ------------------------------------------------------------------
@@ -626,6 +635,113 @@ export class ChimeraChatView extends ItemView {
   }
 
   /**
+   * Builds the effort hover-dropdown in the input toolbar (Claudian thinking-selector pattern).
+   */
+  private buildEffortSelector(toolbar: HTMLElement): void {
+    const wrapper = toolbar.createDiv({ cls: "chimera-effort-selector" });
+
+    wrapper.createSpan({ cls: "chimera-effort-label-text", text: "Effort:" });
+
+    this.effortLabelEl = wrapper.createSpan({ cls: "chimera-effort-current" });
+    this.effortLabelEl.textContent = this.getEffortDisplayName(this.plugin.settings.effortLevel);
+
+    this.effortDropdownEl = wrapper.createDiv({ cls: "chimera-effort-dropdown" });
+    this.refreshEffortDropdown();
+  }
+
+  /**
+   * Refreshes the effort dropdown options to match the current selection.
+   */
+  private refreshEffortDropdown(): void {
+    this.effortDropdownEl.innerHTML = "";
+    const levels = ["max", "high", "med", "low"];
+    const displayNames: Record<string, string> = { max: "Max", high: "High", med: "Med", low: "Low" };
+
+    for (const level of levels) {
+      const opt = this.effortDropdownEl.createDiv({ cls: "chimera-effort-option" });
+      opt.textContent = displayNames[level];
+      if (this.plugin.settings.effortLevel === level) opt.addClass("selected");
+      opt.addEventListener("click", async () => {
+        this.plugin.settings.effortLevel = level;
+        await this.plugin.saveSettings();
+        this.effortLabelEl.textContent = displayNames[level];
+        this.refreshEffortDropdown();
+      });
+    }
+  }
+
+  /**
+   * Returns the user-facing display name for an effort level key.
+   */
+  private getEffortDisplayName(level: string): string {
+    const names: Record<string, string> = { max: "Max", high: "High", med: "Med", low: "Low" };
+    return names[level] || level;
+  }
+
+  /**
+   * Builds the external context folder button in the input toolbar.
+   */
+  private buildExternalContextSelector(toolbar: HTMLElement): void {
+    const wrapper = toolbar.createDiv({ cls: "chimera-external-context-selector" });
+
+    const iconBtn = wrapper.createDiv({ cls: "chimera-external-context-icon-wrapper" });
+    const iconEl = iconBtn.createDiv({ cls: "chimera-external-context-icon" });
+    setIcon(iconEl, "folder-open");
+
+    this.externalContextDropdownEl = wrapper.createDiv({ cls: "chimera-external-context-dropdown" });
+    const headerEl = this.externalContextDropdownEl.createDiv({ cls: "chimera-external-context-header" });
+    headerEl.textContent = "External Contexts";
+    const hint = this.externalContextDropdownEl.createDiv({ cls: "chimera-external-context-hint" });
+    hint.textContent = "Click folder icon to add";
+
+    // Show/hide on click (not hover for this one, since it's an action)
+    iconBtn.addEventListener("click", () => {
+      this.externalContextDropdownEl.toggleClass("is-visible", !this.externalContextDropdownEl.hasClass("is-visible"));
+    });
+  }
+
+  /**
+   * Opens the agent creation modal.
+   */
+  private showCreateAgentModal(): void {
+    const modal = new AgentCreationModal(this.app, async (name, description, model, systemPrompt) => {
+      // Write agent file to .claude/agents/
+      const content = [
+        "---",
+        `name: ${name}`,
+        `description: "${description}"`,
+        `model: ${model}`,
+        "type: standard",
+        "allowed_tools: []",
+        "denied_tools: []",
+        "isolation: none",
+        "memory: vault",
+        "timeout_seconds: 300",
+        "output_format: chat",
+        "tags:",
+        "  - chimera/agent",
+        "---",
+        "",
+        `# ${name}`,
+        "",
+        systemPrompt,
+      ].join("\n");
+
+      const path = `.claude/agents/${name}.md`;
+      try {
+        await this.app.vault.adapter.write(path, content);
+        new Notice(`Agent "${name}" created`);
+        // Reload agents
+        this.agents = await this.plugin.agentLoader.loadAgents();
+        this.refreshAgentDropdown();
+      } catch (err) {
+        new Notice(`Failed to create agent: ${err}`);
+      }
+    });
+    modal.open();
+  }
+
+  /**
    * Builds the agent hover-dropdown in the input toolbar (like Claudian's
    * model dropdown).
    */
@@ -655,6 +771,18 @@ export class ChimeraChatView extends ItemView {
       if (this.currentAgent?.name === agent.name) opt.addClass("selected");
       opt.addEventListener("click", () => this.handleAgentChange(agent.name));
     }
+
+    // Divider
+    this.agentDropdownEl.createDiv({ cls: "chimera-agent-divider" });
+
+    // Add agent button
+    const addBtn = this.agentDropdownEl.createDiv({ cls: "chimera-agent-option chimera-agent-add" });
+    const addIcon = addBtn.createSpan();
+    setIcon(addIcon, "plus");
+    addBtn.createSpan({ text: " Create agent..." });
+    addBtn.addEventListener("click", () => {
+      this.showCreateAgentModal();
+    });
   }
 
   /**
@@ -674,21 +802,33 @@ export class ChimeraChatView extends ItemView {
    */
   private updatePermissionDisplay(): void {
     const mode = this.plugin.settings.permissionMode;
+    this.permissionToggleEl.removeClass("active");
+    this.permissionToggleEl.removeClass("plan");
+
     if (mode === PermissionMode.YOLO) {
       this.permissionToggleEl.addClass("active");
       this.permissionLabelEl.textContent = "YOLO";
+    } else if (mode === PermissionMode.Plan) {
+      this.permissionToggleEl.addClass("plan");
+      this.permissionLabelEl.textContent = "Plan";
     } else {
-      this.permissionToggleEl.removeClass("active");
       this.permissionLabelEl.textContent = "Safe";
     }
   }
 
   /**
-   * Toggles between Safe and YOLO permission modes.
+   * Cycles between Safe, Plan, and YOLO permission modes.
    */
   private async togglePermission(): Promise<void> {
     const current = this.plugin.settings.permissionMode;
-    const next = current === PermissionMode.YOLO ? PermissionMode.Safe : PermissionMode.YOLO;
+    let next: PermissionMode;
+    if (current === PermissionMode.Safe) {
+      next = PermissionMode.Plan;
+    } else if (current === PermissionMode.Plan) {
+      next = PermissionMode.YOLO;
+    } else {
+      next = PermissionMode.Safe;
+    }
     this.plugin.settings.permissionMode = next;
     await this.plugin.saveSettings();
     this.updatePermissionDisplay();
@@ -768,16 +908,29 @@ export class ChimeraChatView extends ItemView {
     if (!this.historyMenuEl) return;
     this.historyMenuEl.innerHTML = "";
 
+    // Header
+    const header = this.historyMenuEl.createDiv({ cls: "chimera-history-header" });
+    header.textContent = "CONVERSATIONS";
+
     if (entries.length === 0) {
-      const emptyEl = this.historyMenuEl.createDiv({ cls: "chimera-history-item" });
-      emptyEl.createDiv({ cls: "chimera-history-title", text: "No sessions yet" });
+      const empty = this.historyMenuEl.createDiv({ cls: "chimera-history-empty" });
+      empty.textContent = "No conversations yet";
       return;
     }
 
     for (const entry of entries.slice(0, 20)) {
       const item = this.historyMenuEl.createDiv({ cls: "chimera-history-item" });
-      item.createDiv({ cls: "chimera-history-title", text: entry.title || "Untitled" });
-      item.createDiv({ cls: "chimera-history-meta", text: entry.updated?.slice(0, 10) || "" });
+
+      const iconEl = item.createSpan({ cls: "chimera-history-icon" });
+      setIcon(iconEl, "message-square");
+
+      const textCol = item.createDiv({ cls: "chimera-history-text" });
+      textCol.createDiv({ cls: "chimera-history-title", text: entry.title || "Untitled" });
+
+      // Format date nicely
+      const dateStr = entry.updated ? new Date(entry.updated).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "";
+      textCol.createDiv({ cls: "chimera-history-meta", text: dateStr });
+
       if (this.currentSession?.sessionId === entry.sessionId) item.addClass("active");
       item.addEventListener("click", () => {
         this.handleSessionResume(entry.sessionId);
@@ -1148,5 +1301,83 @@ export class ChimeraChatView extends ItemView {
       this.hideSlashDropdown();
       this.inputEl.focus();
     }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// AgentCreationModal
+// ---------------------------------------------------------------------------
+
+/**
+ * Modal dialog for creating a new agent definition file in `.claude/agents/`.
+ */
+class AgentCreationModal extends Modal {
+  private onSubmit: (name: string, description: string, model: string, systemPrompt: string) => Promise<void>;
+
+  constructor(app: App, onSubmit: (name: string, description: string, model: string, systemPrompt: string) => Promise<void>) {
+    super(app);
+    this.onSubmit = onSubmit;
+  }
+
+  onOpen(): void {
+    const { contentEl } = this;
+    contentEl.createEl("h3", { text: "Create Agent" });
+
+    let name = "";
+    let description = "";
+    let model = "sonnet";
+    let systemPrompt = "";
+
+    new Setting(contentEl)
+      .setName("Name")
+      .setDesc("Agent identifier (used with @name)")
+      .addText(text => {
+        text.setPlaceholder("research-agent");
+        text.onChange(v => { name = v; });
+      });
+
+    new Setting(contentEl)
+      .setName("Description")
+      .addText(text => {
+        text.setPlaceholder("What does this agent do?");
+        text.onChange(v => { description = v; });
+      });
+
+    new Setting(contentEl)
+      .setName("Model")
+      .addDropdown(dd => {
+        dd.addOption("haiku", "Haiku");
+        dd.addOption("sonnet", "Sonnet");
+        dd.addOption("opus", "Opus");
+        dd.setValue("sonnet");
+        dd.onChange(v => { model = v; });
+      });
+
+    new Setting(contentEl)
+      .setName("System Prompt")
+      .setDesc("Instructions for this agent");
+
+    const promptArea = contentEl.createEl("textarea", { cls: "chimera-agent-prompt-input" });
+    promptArea.rows = 6;
+    promptArea.placeholder = "You are a specialist that...";
+    promptArea.addEventListener("input", () => { systemPrompt = promptArea.value; });
+
+    new Setting(contentEl)
+      .addButton(btn => {
+        btn.setButtonText("Create Agent");
+        btn.setCta();
+        btn.onClick(async () => {
+          if (!name.trim()) {
+            new Notice("Agent name is required");
+            return;
+          }
+          await this.onSubmit(name.trim(), description.trim(), model, systemPrompt.trim());
+          this.close();
+        });
+      });
+  }
+
+  onClose(): void {
+    this.contentEl.empty();
   }
 }

@@ -53,6 +53,7 @@ function makeSettings(overrides: Partial<ChimeraSettings> = {}): ChimeraSettings
     userName: "Tester",
     excludedTags: [],
     model: "sonnet",
+    effortLevel: "high",
     ...overrides,
   };
 }

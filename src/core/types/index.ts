@@ -529,6 +529,8 @@ export interface ChimeraSettings {
   excludedTags: string[];
   /** Selected Claude model for conversations. */
   model: string;
+  /** Effort level for adaptive thinking models. */
+  effortLevel: string;
 }
 
 /**
@@ -548,6 +550,7 @@ export const DEFAULT_SETTINGS: ChimeraSettings = {
   userName: "",
   excludedTags: [],
   model: "sonnet",
+  effortLevel: "high",
 };
 
 // ---------------------------------------------------------------------------

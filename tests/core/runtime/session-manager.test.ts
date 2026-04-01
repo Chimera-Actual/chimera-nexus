@@ -25,6 +25,7 @@ function makeSettings(
     userName: "test",
     excludedTags: [],
     model: "sonnet",
+    effortLevel: "high",
     ...overrides,
   };
 }
