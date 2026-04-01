@@ -6,10 +6,12 @@
  * execution, and post-session processing (memory extraction and summarization).
  *
  * Layout mirrors the Claudian plugin's design language with chimera- prefixed
- * CSS classes throughout.
+ * CSS classes throughout. Header is minimal (logo + title only), action buttons
+ * live in a nav row between messages and input, agent selection uses a hover
+ * dropdown, and permission mode uses a toggle switch.
  */
 
-import { ItemView, Notice, WorkspaceLeaf } from "obsidian";
+import { ItemView, Notice, WorkspaceLeaf, setIcon } from "obsidian";
 
 import {
   ChimeraSettings,
@@ -19,6 +21,7 @@ import {
   MentionResult,
   PermissionMode,
   AuthMethod,
+  SessionIndexEntry,
 } from "../../core/types";
 import { SdkWrapper } from "../../core/runtime/sdk-wrapper";
 import { MemoryInjector } from "../../core/memory/memory-injector";
@@ -29,7 +32,6 @@ import { SessionIndex } from "../../features/sessions/session-index";
 import { AgentLoader } from "../../core/claude-compat/agent-loader";
 import { HookManager } from "../../core/claude-compat/hook-manager";
 import { detectMention } from "./mention-detector";
-import { AgentSelector } from "./agent-selector";
 import { SlashCommandRegistry, SlashCommandContext } from "../../commands/slash-commands";
 import { tryAutoCommit } from "../../utils/vault-helpers";
 
@@ -93,8 +95,6 @@ export class ChimeraChatView extends ItemView {
   // Private DOM references
   // -------------------------------------------------------------------------
 
-  private agentSelect!: HTMLSelectElement;
-  private permissionSelect!: HTMLSelectElement;
   private messagesEl!: HTMLElement;
   private inputEl!: HTMLTextAreaElement;
   private statusBarEl!: HTMLElement;
@@ -102,6 +102,10 @@ export class ChimeraChatView extends ItemView {
   private statusTextEl!: HTMLElement;
   private welcomeEl!: HTMLElement | null;
   private historyMenuEl!: HTMLElement | null;
+  private agentLabelEl!: HTMLElement;
+  private agentDropdownEl!: HTMLElement;
+  private permissionLabelEl!: HTMLElement;
+  private permissionToggleEl!: HTMLElement;
 
   // -------------------------------------------------------------------------
   // State
@@ -111,9 +115,7 @@ export class ChimeraChatView extends ItemView {
   private currentSession: Session | null = null;
   private currentAgent: AgentDefinition | null = null;
   private agents: AgentDefinition[] = [];
-  private agentSelectorComponent: AgentSelector | null = null;
   private isStreaming = false;
-  private historyVisible = false;
 
   // -------------------------------------------------------------------------
   // Constructor
@@ -153,116 +155,112 @@ export class ChimeraChatView extends ItemView {
   /**
    * Called by Obsidian when the leaf is opened.
    *
-   * Builds the Claudian-inspired DOM layout, loads agents and session index
-   * entries, wires up the AgentSelector component, and attaches all event
-   * listeners.
+   * Builds the Claudian-matched DOM layout: minimal header (logo + title),
+   * messages area, nav row with action buttons between messages and input,
+   * bordered input wrapper with toolbar containing model label, agent hover
+   * dropdown, and permission toggle switch.
    */
   async onOpen(): Promise<void> {
     const container = this.containerEl;
     container.empty();
 
-    // Root wrapper -- Claudian-style container
+    // Root wrapper
     const root = container.createDiv({ cls: "chimera-container" });
 
     // ------------------------------------------------------------------
-    // 1. Header bar (Claudian header.css pattern)
+    // 1. Header - ONLY logo + title (nothing else)
     // ------------------------------------------------------------------
 
     const header = root.createDiv({ cls: "chimera-header" });
-
     const titleSlot = header.createDiv({ cls: "chimera-title-slot" });
-    titleSlot.createEl("h3", { cls: "chimera-title-text", text: "Chimera Nexus" });
 
-    const headerActions = header.createDiv({ cls: "chimera-header-actions" });
+    // Brand logo (8-point star)
+    const logoEl = titleSlot.createSpan({ cls: "chimera-logo" });
+    logoEl.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="var(--chimera-brand)" stroke="none"><path d="M12 2L14 10L22 12L14 14L12 22L10 14L2 12L10 10Z"/></svg>`;
 
-    // Agent selector dropdown (compact, in header)
-    this.agentSelect = headerActions.createEl("select", { cls: "chimera-agent-select" });
-    const defaultOption = this.agentSelect.createEl("option");
-    defaultOption.value = "default";
-    defaultOption.textContent = "Default";
-
-    this.agentSelect.addEventListener("change", () => {
-      const value = this.agentSelect.value;
-      this.handleAgentChange(value === "default" ? "" : value);
-    });
-
-    // New session button (plus icon)
-    const newSessionBtn = headerActions.createEl("span", { cls: "chimera-header-btn" });
-    newSessionBtn.title = "New Session";
-    newSessionBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>`;
-    newSessionBtn.addEventListener("click", () => {
-      this.startNewSession();
-      this.messagesEl.innerHTML = "";
-      this.showWelcome();
-      this.updateStatus("New session started.");
-    });
-
-    // History toggle button
-    const historyBtn = headerActions.createEl("span", { cls: "chimera-header-btn" });
-    historyBtn.title = "Session History";
-    historyBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8v4l3 3"></path><circle cx="12" cy="12" r="10"></circle></svg>`;
-    historyBtn.addEventListener("click", () => {
-      this.toggleHistory();
-    });
+    titleSlot.createEl("h4", { cls: "chimera-title-text", text: "Chimera Nexus" });
 
     // ------------------------------------------------------------------
-    // 2. Messages wrapper (Claudian messages.css pattern)
+    // 2. Messages wrapper
     // ------------------------------------------------------------------
 
     const messagesWrapper = root.createDiv({ cls: "chimera-messages-wrapper" });
     this.messagesEl = messagesWrapper.createDiv({ cls: "chimera-messages" });
     this.showWelcome();
 
-    // History menu (hidden by default, positioned inside wrapper)
-    this.historyMenuEl = null;
-
     // ------------------------------------------------------------------
-    // 3. Input area (Claudian input.css pattern)
+    // 3. Input container
     // ------------------------------------------------------------------
 
     const inputContainer = root.createDiv({ cls: "chimera-input-container" });
+
+    // 3a. Nav row (between messages and input, like Claudian's tab badges)
+    const navRow = inputContainer.createDiv({ cls: "chimera-input-nav-row" });
+    const navActions = navRow.createDiv({ cls: "chimera-nav-actions" });
+
+    // New session button
+    const newBtn = navActions.createEl("span", { cls: "chimera-header-btn" });
+    setIcon(newBtn, "square-plus");
+    newBtn.title = "New session";
+    newBtn.addEventListener("click", () => {
+      this.startNewSession();
+      this.messagesEl.innerHTML = "";
+      this.showWelcome();
+      this.updateStatus("New session started.");
+    });
+
+    // New conversation button
+    const editBtn = navActions.createEl("span", { cls: "chimera-header-btn" });
+    setIcon(editBtn, "square-pen");
+    editBtn.title = "New conversation";
+    editBtn.addEventListener("click", () => {
+      this.startNewSession();
+      this.messagesEl.innerHTML = "";
+      this.showWelcome();
+      this.updateStatus("New conversation.");
+    });
+
+    // History button + dropdown container
+    const historyContainer = navActions.createDiv({ cls: "chimera-history-container" });
+    const historyBtn = historyContainer.createEl("span", { cls: "chimera-header-btn" });
+    setIcon(historyBtn, "history");
+    historyBtn.title = "Session history";
+    this.historyMenuEl = historyContainer.createDiv({ cls: "chimera-history-menu" });
+    historyBtn.addEventListener("click", () => {
+      this.toggleHistory();
+    });
+
+    // 3b. Input wrapper (bordered box)
     const inputWrapper = inputContainer.createDiv({ cls: "chimera-input-wrapper" });
 
     this.inputEl = inputWrapper.createEl("textarea", { cls: "chimera-input" });
-    this.inputEl.placeholder = "Message Chimera... (use @agent to delegate)";
+    this.inputEl.placeholder = "How can I help you today?";
+    this.inputEl.rows = 3;
+    this.inputEl.setAttribute("dir", "auto");
 
+    // Enter to send, Shift+Enter for newline (NO send button)
     this.inputEl.addEventListener("keydown", (evt: KeyboardEvent) => {
       if (evt.key === "Enter" && !evt.shiftKey) {
         evt.preventDefault();
         this.handleSend();
       }
-      // Shift+Enter falls through and inserts a newline naturally.
     });
 
+    // 3c. Input toolbar (inside input wrapper, at bottom)
     const toolbar = inputWrapper.createDiv({ cls: "chimera-input-toolbar" });
 
-    // Permission mode selector in toolbar
-    const permissionToggle = toolbar.createDiv({ cls: "chimera-permission-toggle" });
-    this.permissionSelect = permissionToggle.createEl("select", { cls: "chimera-permission-select" });
+    // Model label (like Claudian's model selector, read-only for now)
+    const modelLabel = toolbar.createDiv({ cls: "chimera-model-label" });
+    modelLabel.textContent = "Sonnet";
 
-    for (const pm of [PermissionMode.Safe, PermissionMode.Plan, PermissionMode.YOLO]) {
-      const opt = this.permissionSelect.createEl("option");
-      opt.value = pm;
-      opt.textContent = pm === PermissionMode.Safe ? "Safe" : pm === PermissionMode.Plan ? "Plan" : "YOLO";
-      if (pm === this.plugin.settings.permissionMode) opt.selected = true;
-    }
+    // Agent selector (hover dropdown like Claudian's model dropdown)
+    this.buildAgentSelector(toolbar);
 
-    this.permissionSelect.className = `chimera-permission-select mode-${this.plugin.settings.permissionMode}`;
-
-    this.permissionSelect.addEventListener("change", () => {
-      this.handlePermissionChange(this.permissionSelect.value);
-    });
-
-    // Send button at end of toolbar
-    const sendBtn = toolbar.createEl("button", { cls: "chimera-send-btn" });
-    sendBtn.innerHTML = "&#9654;"; // Right-pointing triangle (play icon)
-    sendBtn.title = "Send message";
-    sendBtn.addEventListener("click", () => {
-      this.handleSend();
-    });
+    // Permission toggle (Safe/YOLO toggle switch)
+    this.buildPermissionToggle(toolbar);
 
     // ------------------------------------------------------------------
-    // 4. Status bar with connection indicator
+    // 4. Status bar
     // ------------------------------------------------------------------
 
     this.statusBarEl = root.createDiv({ cls: "chimera-status-bar" });
@@ -271,7 +269,7 @@ export class ChimeraChatView extends ItemView {
     this.updateConnectionStatus();
 
     // ------------------------------------------------------------------
-    // 5. Load agents and wire up AgentSelector
+    // 5. Load agents and populate controls
     // ------------------------------------------------------------------
 
     try {
@@ -280,27 +278,10 @@ export class ChimeraChatView extends ItemView {
       // Logged internally by AgentLoader.
     }
 
-    // Populate the header agent dropdown
-    for (const agent of this.agents) {
-      const opt = this.agentSelect.createEl("option");
-      opt.value = agent.name;
-      opt.textContent = agent.name;
-    }
+    this.refreshAgentDropdown();
 
-    // Also wire up the AgentSelector component for session list management.
-    // We create a hidden container for it since we use the header dropdown.
-    const selectorArea = root.createDiv({ cls: "chimera-agent-selector" });
-    this.agentSelectorComponent = new AgentSelector(
-      selectorArea,
-      this.agents,
-      (agentName) => this.handleAgentChange(agentName),
-      (sessionId) => this.handleSessionResume(sessionId),
-    );
-    this.agentSelectorComponent.render();
-
-    // Load session index entries for the session list.
     const entries = this.plugin.sessionIndex.getEntries();
-    this.agentSelectorComponent.setSessions(entries);
+    this.refreshHistoryMenu(entries);
   }
 
   /**
@@ -352,14 +333,13 @@ export class ChimeraChatView extends ItemView {
 
   /**
    * Appends a message bubble to the messages area and scrolls to the bottom.
-   * Uses Claudian-style layout: no role labels, user messages right-aligned
-   * with dark bubble, assistant messages transparent full-width left-aligned.
+   * No role labels -- user messages right-aligned with dark bubble, assistant
+   * messages transparent full-width left-aligned.
    *
    * @param role    - Either `"user"` or `"assistant"`.
    * @param content - Plain-text message content to display.
    */
   addMessage(role: "user" | "assistant", content: string): void {
-    // Clear welcome state on first message.
     this.clearWelcome();
 
     const msgEl = this.messagesEl.createDiv({
@@ -369,7 +349,6 @@ export class ChimeraChatView extends ItemView {
     const contentEl = msgEl.createDiv({ cls: "chimera-message-content" });
     contentEl.textContent = content;
 
-    // Auto-scroll to the newly added message.
     this.messagesEl.scrollTop = this.messagesEl.scrollHeight;
   }
 
@@ -381,7 +360,6 @@ export class ChimeraChatView extends ItemView {
     const text = this.inputEl.value.trim();
     if (!text || this.isStreaming) return;
 
-    // Clear welcome on send.
     this.clearWelcome();
 
     // Check for slash command before anything else.
@@ -514,12 +492,84 @@ export class ChimeraChatView extends ItemView {
   }
 
   // -------------------------------------------------------------------------
-  // Private helpers - UI
+  // Private helpers - UI builders
+  // -------------------------------------------------------------------------
+
+  /**
+   * Builds the agent hover-dropdown in the input toolbar (like Claudian's
+   * model dropdown).
+   */
+  private buildAgentSelector(toolbar: HTMLElement): void {
+    const wrapper = toolbar.createDiv({ cls: "chimera-agent-selector-wrapper" });
+    this.agentLabelEl = wrapper.createDiv({ cls: "chimera-agent-label" });
+    this.agentLabelEl.textContent = "Default";
+    this.agentDropdownEl = wrapper.createDiv({ cls: "chimera-agent-dropdown" });
+  }
+
+  /**
+   * Refreshes the agent dropdown options to match the current agents list.
+   */
+  private refreshAgentDropdown(): void {
+    this.agentDropdownEl.innerHTML = "";
+
+    // Default option
+    const defaultOpt = this.agentDropdownEl.createDiv({ cls: "chimera-agent-option" });
+    defaultOpt.textContent = "Default";
+    if (!this.currentAgent) defaultOpt.addClass("selected");
+    defaultOpt.addEventListener("click", () => this.handleAgentChange(""));
+
+    // Agent options
+    for (const agent of this.agents) {
+      const opt = this.agentDropdownEl.createDiv({ cls: "chimera-agent-option" });
+      opt.textContent = agent.name;
+      if (this.currentAgent?.name === agent.name) opt.addClass("selected");
+      opt.addEventListener("click", () => this.handleAgentChange(agent.name));
+    }
+  }
+
+  /**
+   * Builds the permission toggle switch in the input toolbar (like Claudian's
+   * Safe/YOLO toggle).
+   */
+  private buildPermissionToggle(toolbar: HTMLElement): void {
+    const toggle = toolbar.createDiv({ cls: "chimera-permission-toggle" });
+    this.permissionLabelEl = toggle.createSpan({ cls: "chimera-permission-label" });
+    this.permissionToggleEl = toggle.createDiv({ cls: "chimera-toggle-switch" });
+    this.updatePermissionDisplay();
+    this.permissionToggleEl.addEventListener("click", () => this.togglePermission());
+  }
+
+  /**
+   * Updates the permission toggle visual state to match the current setting.
+   */
+  private updatePermissionDisplay(): void {
+    const mode = this.plugin.settings.permissionMode;
+    if (mode === PermissionMode.YOLO) {
+      this.permissionToggleEl.addClass("active");
+      this.permissionLabelEl.textContent = "YOLO";
+    } else {
+      this.permissionToggleEl.removeClass("active");
+      this.permissionLabelEl.textContent = "Safe";
+    }
+  }
+
+  /**
+   * Toggles between Safe and YOLO permission modes.
+   */
+  private async togglePermission(): Promise<void> {
+    const current = this.plugin.settings.permissionMode;
+    const next = current === PermissionMode.YOLO ? PermissionMode.Safe : PermissionMode.YOLO;
+    this.plugin.settings.permissionMode = next;
+    await this.plugin.saveSettings();
+    this.updatePermissionDisplay();
+  }
+
+  // -------------------------------------------------------------------------
+  // Private helpers - UI state
   // -------------------------------------------------------------------------
 
   /**
    * Shows the centered welcome/empty state in the messages area.
-   * Uses Claudian's "What can I help with?" greeting style.
    */
   private showWelcome(): void {
     this.welcomeEl = this.messagesEl.createDiv({ cls: "chimera-welcome" });
@@ -534,16 +584,6 @@ export class ChimeraChatView extends ItemView {
       this.welcomeEl.remove();
       this.welcomeEl = null;
     }
-  }
-
-  /**
-   * Handles permission mode changes from the toolbar dropdown.
-   */
-  private async handlePermissionChange(mode: string): Promise<void> {
-    this.plugin.settings.permissionMode = mode as PermissionMode;
-    await this.plugin.saveSettings();
-    // Update visual indicator
-    this.permissionSelect.className = `chimera-permission-select mode-${mode}`;
   }
 
   /**
@@ -566,7 +606,7 @@ export class ChimeraChatView extends ItemView {
     }
 
     this.statusDotEl.className = isConnected
-      ? "chimera-status-dot"
+      ? "chimera-status-dot connected"
       : "chimera-status-dot disconnected";
 
     // Only update text if no explicit status has been set
@@ -576,46 +616,43 @@ export class ChimeraChatView extends ItemView {
   }
 
   /**
-   * Toggles the session history popover.
+   * Toggles the session history dropdown visibility.
    */
   private toggleHistory(): void {
-    if (this.historyVisible && this.historyMenuEl) {
-      this.historyMenuEl.remove();
-      this.historyMenuEl = null;
-      this.historyVisible = false;
-      return;
+    if (!this.historyMenuEl) return;
+
+    if (this.historyMenuEl.hasClass("is-visible")) {
+      this.historyMenuEl.removeClass("is-visible");
+    } else {
+      // Refresh entries before showing
+      const entries = this.plugin.sessionIndex.getEntries();
+      this.refreshHistoryMenu(entries);
+      this.historyMenuEl.addClass("is-visible");
     }
+  }
 
-    // Build history menu
-    const wrapper = this.containerEl.querySelector(".chimera-messages-wrapper");
-    if (!wrapper) return;
+  /**
+   * Refreshes the history menu entries.
+   */
+  private refreshHistoryMenu(entries: SessionIndexEntry[]): void {
+    if (!this.historyMenuEl) return;
+    this.historyMenuEl.innerHTML = "";
 
-    this.historyMenuEl = wrapper.createDiv({ cls: "chimera-history-menu" });
-    this.historyVisible = true;
-
-    const entries = this.plugin.sessionIndex.getEntries();
     if (entries.length === 0) {
       const emptyEl = this.historyMenuEl.createDiv({ cls: "chimera-history-item" });
       emptyEl.createDiv({ cls: "chimera-history-title", text: "No sessions yet" });
-    } else {
-      for (const entry of entries) {
-        const item = this.historyMenuEl.createDiv({ cls: "chimera-history-item" });
-        if (this.currentSession && entry.sessionId === this.currentSession.sessionId) {
-          item.addClass("active");
-        }
-        item.createDiv({
-          cls: "chimera-history-title",
-          text: entry.title || entry.sessionId.slice(0, 8),
-        });
-        item.createDiv({
-          cls: "chimera-history-meta",
-          text: `${entry.agent || "default"} - ${entry.messageCount} msgs`,
-        });
-        item.addEventListener("click", () => {
-          this.handleSessionResume(entry.sessionId);
-          this.toggleHistory(); // Close menu after selection
-        });
-      }
+      return;
+    }
+
+    for (const entry of entries.slice(0, 20)) {
+      const item = this.historyMenuEl.createDiv({ cls: "chimera-history-item" });
+      item.createDiv({ cls: "chimera-history-title", text: entry.title || "Untitled" });
+      item.createDiv({ cls: "chimera-history-meta", text: entry.updated?.slice(0, 10) || "" });
+      if (this.currentSession?.sessionId === entry.sessionId) item.addClass("active");
+      item.addEventListener("click", () => {
+        this.handleSessionResume(entry.sessionId);
+        this.historyMenuEl?.removeClass("is-visible");
+      });
     }
   }
 
@@ -656,7 +693,6 @@ export class ChimeraChatView extends ItemView {
    * @returns The content element that should be updated with streaming text.
    */
   private createStreamingMessage(): HTMLElement {
-    // Clear welcome state on streaming start.
     this.clearWelcome();
 
     const msgEl = this.messagesEl.createDiv({
@@ -691,7 +727,7 @@ export class ChimeraChatView extends ItemView {
    *
    * If the current session has messages it is paused and saved before the
    * switch. A new session is started for the selected agent, the messages area
-   * is cleared, and the session list is refreshed.
+   * is cleared, and the agent dropdown is refreshed.
    *
    * @param agentName - Name of the agent to switch to, or empty string for default.
    */
@@ -727,20 +763,15 @@ export class ChimeraChatView extends ItemView {
     // Start a new session for the new agent.
     this.startNewSession();
 
-    // Update session list for the selected agent.
-    if (this.agentSelectorComponent) {
-      const entries = this.plugin.sessionIndex.getEntries(agentName || undefined);
-      this.agentSelectorComponent.setSessions(entries);
-    }
-
-    // Sync the header dropdown.
-    this.agentSelect.value = agentName || "default";
+    // Update the agent label and dropdown selection.
+    this.agentLabelEl.textContent = this.currentAgent?.name ?? "Default";
+    this.refreshAgentDropdown();
 
     // Clear messages area and show welcome for new agent.
     this.messagesEl.innerHTML = "";
-    const agentLabel = this.currentAgent?.name ?? "Default Chimera";
     this.showWelcome();
 
+    const agentLabel = this.currentAgent?.name ?? "Default Chimera";
     this.updateStatus(`Agent: ${agentLabel}`);
   }
 
@@ -776,6 +807,10 @@ export class ChimeraChatView extends ItemView {
       } else {
         this.currentAgent = null;
       }
+
+      // Update agent label.
+      this.agentLabelEl.textContent = this.currentAgent?.name ?? "Default";
+      this.refreshAgentDropdown();
 
       // Clear messages area and re-render all messages.
       this.messagesEl.innerHTML = "";

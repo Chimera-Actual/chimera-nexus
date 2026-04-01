@@ -1,12 +1,12 @@
 /* ============================================================================
-   Chimera Nexus - Claudian-inspired Design System
+   Chimera Nexus - Claudian-matched Design System
    ============================================================================
-   Mirrors the Claudian plugin's visual approach with chimera- prefix.
-   Brand tokens, animations, layout, messages, input, and all components.
+   Pixel-matched to Claudian's layout: minimal header, nav row between messages
+   and input, hover agent dropdown, toggle permission switch, no send button.
    ============================================================================ */
 
 /* ---------------------------------------------------------------------------
-   Brand Tokens (like Claudian's variables.css)
+   Brand Tokens
    --------------------------------------------------------------------------- */
 
 .chimera-container {
@@ -17,7 +17,7 @@
 }
 
 /* ---------------------------------------------------------------------------
-   Animations (from Claudian)
+   Animations
    --------------------------------------------------------------------------- */
 
 @keyframes thinking-pulse {
@@ -35,7 +35,7 @@
 }
 
 /* ---------------------------------------------------------------------------
-   Container (from Claudian)
+   Container
    --------------------------------------------------------------------------- */
 
 .chimera-container {
@@ -48,7 +48,7 @@
 }
 
 /* ---------------------------------------------------------------------------
-   Header (from Claudian's header.css)
+   Header (minimal: logo + title only)
    --------------------------------------------------------------------------- */
 
 .chimera-header {
@@ -71,34 +71,13 @@
   font-weight: 600;
 }
 
-.chimera-header-actions {
+.chimera-logo {
   display: flex;
   align-items: center;
-  gap: 12px;
-  flex-shrink: 0;
-  margin-inline-start: auto;
-}
-
-.chimera-header-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  color: var(--text-faint);
-  transition: color 0.15s ease;
-}
-
-.chimera-header-btn:hover {
-  color: var(--text-normal);
-}
-
-.chimera-header-btn svg {
-  width: 16px;
-  height: 16px;
 }
 
 /* ---------------------------------------------------------------------------
-   Messages (from Claudian's messages.css)
+   Messages wrapper + welcome
    --------------------------------------------------------------------------- */
 
 .chimera-messages-wrapper {
@@ -119,7 +98,6 @@
   gap: 12px;
 }
 
-/* Welcome message -- claude.ai style */
 .chimera-welcome {
   flex: 1;
   display: flex;
@@ -137,6 +115,10 @@
   color: var(--text-muted);
   letter-spacing: -0.01em;
 }
+
+/* ---------------------------------------------------------------------------
+   Messages (user = dark right bubble, assistant = transparent full-width)
+   --------------------------------------------------------------------------- */
 
 .chimera-message {
   padding: 10px 14px;
@@ -172,13 +154,58 @@
 .chimera-message-content p:last-child { margin-bottom: 0; }
 
 /* ---------------------------------------------------------------------------
-   Input (from Claudian's input.css)
+   Nav row (between messages and input, like Claudian's tab badges row)
+   --------------------------------------------------------------------------- */
+
+.chimera-input-nav-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 0 8px 0;
+  min-height: 0;
+}
+
+.chimera-nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-inline-start: auto;
+}
+
+/* ---------------------------------------------------------------------------
+   Header / nav buttons (icon-only, like Claudian)
+   --------------------------------------------------------------------------- */
+
+.chimera-header-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--text-faint);
+  transition: color 0.15s ease;
+}
+
+.chimera-header-btn:hover {
+  color: var(--text-normal);
+}
+
+.chimera-header-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* ---------------------------------------------------------------------------
+   Input container
    --------------------------------------------------------------------------- */
 
 .chimera-input-container {
   position: relative;
   padding: 12px 0 0 0;
 }
+
+/* ---------------------------------------------------------------------------
+   Input wrapper (bordered box, like Claudian)
+   --------------------------------------------------------------------------- */
 
 .chimera-input-wrapper {
   position: relative;
@@ -219,6 +246,10 @@
   color: var(--text-muted);
 }
 
+/* ---------------------------------------------------------------------------
+   Input toolbar (at bottom of input wrapper)
+   --------------------------------------------------------------------------- */
+
 .chimera-input-toolbar {
   display: flex;
   align-items: center;
@@ -227,36 +258,95 @@
   padding: 4px 6px 6px 6px;
 }
 
-.chimera-input-toolbar .chimera-send-btn {
-  display: inline-flex;
+/* ---------------------------------------------------------------------------
+   Model label (like Claudian's model button)
+   --------------------------------------------------------------------------- */
+
+.chimera-model-label {
+  display: flex;
   align-items: center;
-  justify-content: center;
-  background: var(--interactive-accent);
-  color: var(--text-on-accent);
-  border: none;
-  border-radius: 6px;
-  width: 32px;
-  height: 32px;
-  cursor: pointer;
-  font-size: 16px;
-  flex-shrink: 0;
-  margin-left: auto;
-  transition: opacity 0.15s ease, transform 0.15s ease;
-}
-
-.chimera-input-toolbar .chimera-send-btn:hover {
-  opacity: 0.85;
-  transform: scale(1.04);
-}
-
-.chimera-input-toolbar .chimera-send-btn:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-  transform: none;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  cursor: default;
+  color: var(--chimera-brand);
+  font-size: 12px;
+  font-weight: 500;
 }
 
 /* ---------------------------------------------------------------------------
-   Permission Toggle (from Claudian's permission-toggle.css)
+   Agent label + hover dropdown (like Claudian's model dropdown)
+   --------------------------------------------------------------------------- */
+
+.chimera-agent-selector-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.chimera-agent-label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  font-size: 12px;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.chimera-agent-label:hover {
+  color: var(--text-normal);
+}
+
+.chimera-agent-dropdown {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 4px;
+  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+  width: max-content;
+  min-width: 120px;
+  padding: 4px;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.15s ease, visibility 0.15s ease;
+}
+
+.chimera-agent-selector-wrapper:hover .chimera-agent-dropdown {
+  opacity: 1;
+  visibility: visible;
+}
+
+.chimera-agent-option {
+  padding: 4px 8px;
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--text-muted);
+  border-radius: 3px;
+  transition: background 0.1s ease, color 0.1s ease;
+  white-space: nowrap;
+}
+
+.chimera-agent-option:hover {
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+
+.chimera-agent-option.selected {
+  background: rgba(var(--chimera-brand-rgb), 0.15);
+  color: var(--chimera-brand);
+  font-weight: 500;
+}
+
+/* ---------------------------------------------------------------------------
+   Permission toggle (like Claudian's Safe/YOLO toggle switch)
    --------------------------------------------------------------------------- */
 
 .chimera-permission-toggle {
@@ -274,13 +364,108 @@
   min-width: 28px;
 }
 
-.chimera-permission-label.plan-active {
-  color: rgb(92, 148, 140);
-  font-weight: 600;
+.chimera-toggle-switch {
+  width: 32px;
+  height: 18px;
+  border-radius: 9px;
+  background: var(--background-modifier-border);
+  cursor: pointer;
+  position: relative;
+  transition: background 0.2s ease;
+  flex-shrink: 0;
+}
+
+.chimera-toggle-switch::after {
+  content: '';
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  top: 2px;
+  left: 2px;
+  transition: transform 0.2s ease, background 0.2s ease;
+}
+
+.chimera-toggle-switch:hover {
+  background: var(--background-modifier-hover);
+}
+
+.chimera-toggle-switch.active {
+  background: rgba(var(--chimera-brand-rgb), 0.3);
+}
+
+.chimera-toggle-switch.active::after {
+  transform: translateX(14px);
+  background: var(--chimera-brand);
 }
 
 /* ---------------------------------------------------------------------------
-   Thinking Blocks
+   Scrollbar styling
+   --------------------------------------------------------------------------- */
+
+.chimera-messages::-webkit-scrollbar { width: 6px; }
+.chimera-messages::-webkit-scrollbar-track { background: transparent; }
+.chimera-messages::-webkit-scrollbar-thumb {
+  background: var(--background-modifier-border);
+  border-radius: 3px;
+}
+
+/* ---------------------------------------------------------------------------
+   History dropdown (like Claudian)
+   --------------------------------------------------------------------------- */
+
+.chimera-history-container {
+  position: relative;
+}
+
+.chimera-history-menu {
+  position: absolute;
+  bottom: 100%;
+  inset-inline-end: 0;
+  background: var(--background-secondary);
+  backdrop-filter: blur(20px);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
+  max-height: 400px;
+  width: 280px;
+  overflow-y: auto;
+  z-index: 1000;
+  display: none;
+}
+
+.chimera-history-menu.is-visible {
+  display: block;
+}
+
+.chimera-history-item {
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--text-muted);
+  border-inline-start: 2px solid transparent;
+}
+
+.chimera-history-item:hover {
+  background: var(--background-modifier-hover);
+}
+
+.chimera-history-item.active {
+  border-inline-start-color: var(--interactive-accent);
+  color: var(--text-normal);
+}
+
+.chimera-history-title {
+  font-weight: 500;
+}
+
+.chimera-history-meta {
+  font-size: 11px;
+  color: var(--text-faint);
+}
+
+/* ---------------------------------------------------------------------------
+   Thinking blocks
    --------------------------------------------------------------------------- */
 
 .chimera-thinking {
@@ -303,7 +488,7 @@
 }
 
 /* ---------------------------------------------------------------------------
-   Tool Calls
+   Tool calls
    --------------------------------------------------------------------------- */
 
 .chimera-tool-call { margin: 8px 0; }
@@ -334,7 +519,7 @@
 .chimera-tool-status.status-error { color: var(--color-red); }
 
 /* ---------------------------------------------------------------------------
-   Code Blocks
+   Code blocks
    --------------------------------------------------------------------------- */
 
 .chimera-code-wrapper {
@@ -355,95 +540,7 @@ body.theme-light .chimera-code-wrapper pre {
 }
 
 /* ---------------------------------------------------------------------------
-   Scrollbar Styling
-   --------------------------------------------------------------------------- */
-
-.chimera-messages::-webkit-scrollbar { width: 6px; }
-.chimera-messages::-webkit-scrollbar-track { background: transparent; }
-.chimera-messages::-webkit-scrollbar-thumb {
-  background: var(--background-modifier-border);
-  border-radius: 3px;
-}
-
-/* ---------------------------------------------------------------------------
-   Session History (from Claudian)
-   --------------------------------------------------------------------------- */
-
-.chimera-history-menu {
-  position: absolute;
-  background: var(--background-secondary);
-  backdrop-filter: blur(20px);
-  border: 1px solid var(--background-modifier-border);
-  border-radius: 6px;
-  max-height: 400px;
-  width: 280px;
-  overflow-y: auto;
-  z-index: 100;
-  right: 0;
-  top: 100%;
-}
-
-.chimera-history-item {
-  padding: 8px 12px;
-  cursor: pointer;
-}
-
-.chimera-history-item:hover {
-  background: var(--background-modifier-hover);
-}
-
-.chimera-history-item.active {
-  border-inline-start: 2px solid var(--interactive-accent);
-}
-
-.chimera-history-title {
-  font-size: 13px;
-  color: var(--text-normal);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.chimera-history-meta {
-  font-size: 11px;
-  color: var(--text-faint);
-  margin-top: 2px;
-}
-
-/* ---------------------------------------------------------------------------
-   Agent Selector in Header
-   --------------------------------------------------------------------------- */
-
-.chimera-agent-select {
-  font-size: 12px;
-  padding: 2px 6px;
-  border: 1px solid var(--background-modifier-border);
-  border-radius: 4px;
-  background: var(--background-primary);
-  color: var(--text-normal);
-  cursor: pointer;
-}
-
-/* ---------------------------------------------------------------------------
-   Permission Mode Selector in Toolbar
-   --------------------------------------------------------------------------- */
-
-.chimera-permission-select {
-  font-size: 11px;
-  padding: 1px 4px;
-  border: 1px solid var(--background-modifier-border);
-  border-radius: 4px;
-  background: var(--background-primary);
-  color: var(--text-muted);
-  cursor: pointer;
-}
-
-.chimera-permission-select.mode-safe { border-color: var(--color-green); color: var(--color-green); }
-.chimera-permission-select.mode-plan { border-color: rgb(92, 148, 140); color: rgb(92, 148, 140); }
-.chimera-permission-select.mode-yolo { border-color: var(--chimera-brand); color: var(--chimera-brand); }
-
-/* ---------------------------------------------------------------------------
-   Completion Card
+   Completion card
    --------------------------------------------------------------------------- */
 
 .chimera-completion-card {
@@ -455,13 +552,13 @@ body.theme-light .chimera-code-wrapper pre {
 }
 
 /* ---------------------------------------------------------------------------
-   Status Bar
+   Status bar
    --------------------------------------------------------------------------- */
 
 .chimera-status-bar {
   padding: 4px 14px;
-  font-size: 12px;
-  color: var(--text-muted);
+  font-size: 11px;
+  color: var(--text-faint);
   display: flex;
   align-items: center;
   gap: 6px;
@@ -471,14 +568,14 @@ body.theme-light .chimera-code-wrapper pre {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--color-green);
   flex-shrink: 0;
 }
 
-.chimera-status-dot.disconnected { background: var(--color-red); }
+.chimera-status-dot.connected { background: var(--color-green, #4caf50); }
+.chimera-status-dot.disconnected { background: var(--color-red, #f44336); }
 
 /* ---------------------------------------------------------------------------
-   Focus / Accessibility (from Claudian)
+   Focus / Accessibility
    --------------------------------------------------------------------------- */
 
 .chimera-tool-header:focus-visible,
@@ -489,15 +586,7 @@ body.theme-light .chimera-code-wrapper pre {
 }
 
 /* ---------------------------------------------------------------------------
-   Agent Selector Component (hidden -- managed internally)
-   --------------------------------------------------------------------------- */
-
-.chimera-agent-selector {
-  display: none;
-}
-
-/* ---------------------------------------------------------------------------
-   Settings Tab Enhancements
+   Settings tab
    --------------------------------------------------------------------------- */
 
 .chimera-settings-section-desc {
