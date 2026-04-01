@@ -278,7 +278,7 @@ export class ClaudianService {
     const cliPath = this.plugin.getResolvedClaudeCliPath();
     if (!cliPath) return false;
 
-    const newConfig = this.buildPersistentQueryConfig(vaultPath, cliPath, externalContextPaths);
+    const newConfig = await this.buildPersistentQueryConfig(vaultPath, cliPath, externalContextPaths);
     if (this.needsRestart(newConfig)) {
       // Close FIRST, then try to start new one (allows fallback if CLI unavailable)
       this.closePersistentQuery('config changed', { preserveHandlers: options?.preserveHandlers });
@@ -321,7 +321,7 @@ export class ClaudianService {
 
     this.queryAbortController = new AbortController();
 
-    const config = this.buildPersistentQueryConfig(vaultPath, cliPath, externalContextPaths);
+    const config = await this.buildPersistentQueryConfig(vaultPath, cliPath, externalContextPaths);
     this.currentConfig = config;
 
     // await is intentional: yields to microtask queue so fire-and-forget callers
@@ -442,13 +442,13 @@ export class ClaudianService {
   /**
    * Builds configuration object for tracking changes.
    */
-  private buildPersistentQueryConfig(
+  private async buildPersistentQueryConfig(
     vaultPath: string,
     cliPath: string,
     externalContextPaths?: string[]
-  ): PersistentQueryConfig {
+  ): Promise<PersistentQueryConfig> {
     return QueryOptionsBuilder.buildPersistentQueryConfig(
-      this.buildQueryOptionsContext(vaultPath, cliPath),
+      await this.buildQueryOptionsContext(vaultPath, cliPath),
       externalContextPaths
     );
   }
@@ -456,9 +456,12 @@ export class ClaudianService {
   /**
    * Builds the base query options context from current state.
    */
-  private buildQueryOptionsContext(vaultPath: string, cliPath: string): QueryOptionsContext {
+  private async buildQueryOptionsContext(vaultPath: string, cliPath: string): Promise<QueryOptionsContext> {
     const customEnv = parseEnvironmentVariables(this.plugin.getActiveEnvironmentVariables());
     const enhancedPath = getEnhancedPath(customEnv.PATH, cliPath);
+
+    // CHIMERA PATCH: inject memory context
+    const memoryContext = await (this.plugin as any).chimeraManager?.getActiveMemoryContext() ?? "";
 
     return {
       vaultPath,
@@ -468,20 +471,21 @@ export class ClaudianService {
       enhancedPath,
       mcpManager: this.mcpManager,
       pluginManager: this.plugin.pluginManager,
+      memoryContext,  // CHIMERA PATCH
     };
   }
 
   /**
    * Builds SDK options for the persistent query.
    */
-  private buildPersistentQueryOptions(
+  private async buildPersistentQueryOptions(
     vaultPath: string,
     cliPath: string,
     resumeSessionId?: string,
     resumeSessionAt?: string,
     externalContextPaths?: string[]
-  ): Options {
-    const baseContext = this.buildQueryOptionsContext(vaultPath, cliPath);
+  ): Promise<Options> {
+    const baseContext = await this.buildQueryOptionsContext(vaultPath, cliPath);
     const hooks = this.buildHooks();
 
     const ctx: PersistentQueryContext = {
@@ -1233,7 +1237,7 @@ export class ClaudianService {
     }
 
     // Check if restart is needed using the valid cliPath we already have
-    const newConfig = this.buildPersistentQueryConfig(this.vaultPath, cliPath, newExternalContextPaths);
+    const newConfig = await this.buildPersistentQueryConfig(this.vaultPath, cliPath, newExternalContextPaths);
     if (!this.needsRestart(newConfig)) {
       return;
     }
@@ -1316,7 +1320,7 @@ export class ClaudianService {
     this.vaultPath = cwd;
 
     const queryPrompt = this.buildPromptWithImages(prompt, images);
-    const baseContext = this.buildQueryOptionsContext(cwd, cliPath);
+    const baseContext = await this.buildQueryOptionsContext(cwd, cliPath);
     const externalContextPaths = queryOptions?.externalContextPaths || [];
     const hooks = this.buildHooks(externalContextPaths);
     const hasEditorContext = prompt.includes('<editor_selection');
