@@ -170,3 +170,61 @@ export const DEFAULT_CHIMERA_SETTINGS: ChimeraMemorySettings = {
   autoMemory: true,
   dreamEnabled: true,
 };
+
+// ---------------------------------------------------------------------------
+// Agent definition types
+// ---------------------------------------------------------------------------
+
+/**
+ * Full definition of a Chimera agent loaded from a vault agent note or the
+ * built-in agent registry.
+ */
+export interface AgentDefinition {
+  /** Unique agent name used in @mentions and API calls. */
+  name: string;
+  /** Short human-readable description shown in the UI. */
+  description: string;
+  /** Model identifier (e.g. `"claude-opus-4-5"`). */
+  model: string;
+  /**
+   * Behavioural archetype.
+   * - `"standard"`     - Standalone conversational agent.
+   * - `"orchestrator"` - Can spawn and coordinate sub-agents.
+   */
+  type: "standard" | "orchestrator";
+  /** Explicit allow-list of tool names the agent may use. */
+  allowedTools: string[];
+  /** Explicit deny-list of tool names the agent may never use. */
+  deniedTools: string[];
+  /**
+   * Filesystem isolation strategy.
+   * - `"none"`     - No isolation; full vault access.
+   * - `"worktree"` - Runs inside a Git worktree sandbox.
+   */
+  isolation: "none" | "worktree";
+  /**
+   * Memory loading strategy.
+   * - `"none"`  - No memory files injected.
+   * - `"vault"` - Loads the vault memory folder.
+   * - `"user"`  - Loads the user-scoped memory folder.
+   */
+  memory: "none" | "vault" | "user";
+  /** Maximum context window size in tokens (model default if omitted). */
+  maxTokens?: number;
+  /** Maximum wall-clock seconds before the session is killed. */
+  timeoutSeconds: number;
+  /**
+   * Controls where output goes.
+   * - `"chat"`       - Replies appear inline in the chat panel.
+   * - `"vault_note"` - Output is written to a vault note.
+   */
+  outputFormat: "chat" | "vault_note";
+  /** Vault-relative path for output notes when `outputFormat` is `"vault_note"`. */
+  outputPath?: string;
+  /** Hex colour used in the UI to visually distinguish the agent. */
+  color?: string;
+  /** System prompt injected at the start of every session. */
+  systemPrompt: string;
+  /** Arbitrary tags for filtering. */
+  tags: string[];
+}
