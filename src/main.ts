@@ -39,6 +39,7 @@ import { ClaudianView } from './features/chat/ClaudianView';
 import { type InlineEditContext, InlineEditModal } from './features/inline-edit/ui/InlineEditModal';
 import { ClaudianSettingTab } from './features/settings/ClaudianSettings';
 import { setLocale } from './i18n';
+import { ChimeraManager } from './chimera/bridge/chimera-manager';  // CHIMERA PATCH
 import { ClaudeCliResolver } from './utils/claudeCli';
 import { buildCursorContext } from './utils/editor';
 import { getCurrentModelFromEnvironment, getModelsFromEnvironment, parseEnvironmentVariables } from './utils/env';
@@ -193,6 +194,7 @@ export default class ClaudianPlugin extends Plugin {
   agentManager: AgentManager;
   storage: StorageService;
   cliResolver: ClaudeCliResolver;
+  chimeraManager: ChimeraManager | null = null;  // CHIMERA PATCH
   private conversations: Conversation[] = [];
   private runtimeEnvironmentVariables = '';
 
@@ -213,6 +215,15 @@ export default class ClaudianPlugin extends Plugin {
     // Initialize agent manager (loads plugin agents from plugin install paths)
     this.agentManager = new AgentManager(vaultPath, this.pluginManager);
     await this.agentManager.loadAgents();
+
+    // CHIMERA PATCH: Initialize Chimera Nexus memory system
+    try {
+      this.chimeraManager = new ChimeraManager(this.app.vault, (this.settings as any).chimera);
+      await this.chimeraManager.initialize();
+      console.log('[Chimera] Memory system initialized');
+    } catch (err) {
+      console.warn('[Chimera] Failed to initialize:', err);
+    }
 
     this.registerView(
       VIEW_TYPE_CLAUDIAN,
@@ -338,6 +349,11 @@ export default class ClaudianPlugin extends Plugin {
   }
 
   async onunload() {
+    // CHIMERA PATCH: Cleanup
+    if (this.chimeraManager) {
+      await this.chimeraManager.cleanup();
+    }
+
     // Ensures state is saved even if Obsidian quits without calling onClose()
     for (const view of this.getAllViews()) {
       const tabManager = view.getTabManager();
