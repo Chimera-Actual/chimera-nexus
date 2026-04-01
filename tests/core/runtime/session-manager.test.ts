@@ -26,6 +26,7 @@ function makeSettings(
     excludedTags: [],
     model: "sonnet",
     effortLevel: "high",
+    conversationalMode: false,
     ...overrides,
   };
 }

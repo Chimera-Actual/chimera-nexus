@@ -115,6 +115,7 @@ export class ChimeraChatView extends ItemView {
   private externalContextDropdownEl!: HTMLElement;
   private slashDropdownEl!: HTMLElement;
   private slashSelectedIndex = -1;
+  private convModeBtn!: HTMLElement;
 
   // -------------------------------------------------------------------------
   // State
@@ -304,6 +305,16 @@ export class ChimeraChatView extends ItemView {
 
     // Agent selector (hover dropdown like Claudian's model dropdown)
     this.buildAgentSelector(toolbar);
+
+    // Conversational mode toggle
+    const convWrapper = toolbar.createDiv({ cls: "chimera-conv-mode" });
+    this.convModeBtn = convWrapper.createDiv({ cls: "chimera-conv-mode-btn" });
+    this.updateConvModeButton();
+    this.convModeBtn.addEventListener("click", async () => {
+      this.plugin.settings.conversationalMode = !this.plugin.settings.conversationalMode;
+      await this.plugin.saveSettings();
+      this.updateConvModeButton();
+    });
 
     // Permission selector (Claude Code-style popup)
     this.buildPermissionSelector(toolbar);
@@ -538,6 +549,11 @@ export class ChimeraChatView extends ItemView {
       systemPrompt = this.currentAgent.systemPrompt + "\n\n" + systemPrompt;
     }
 
+    // Conversational mode: instruct the model not to modify files.
+    if (this.plugin.settings.conversationalMode) {
+      systemPrompt += "\n\nYou are in conversational mode. Do NOT modify any files. Only read files when explicitly asked. Focus on answering questions and providing guidance.";
+    }
+
     // Create a placeholder message element for streaming.
     const assistantMsgEl = this.createStreamingMessage();
 
@@ -555,6 +571,14 @@ export class ChimeraChatView extends ItemView {
         }
         fullResponse += chunk;
         this.updateStreamingMessage(assistantMsgEl, fullResponse);
+
+        // Detect permission request from CLI output
+        if (
+          fullResponse.includes("REQUIRED_APPROVAL") ||
+          (fullResponse.includes("permission") && fullResponse.includes("approve"))
+        ) {
+          this.updateStatus("Permission requested - check response");
+        }
       },
       onComplete: async (completeText) => {
         this.removeThinkingIndicator();
@@ -645,6 +669,22 @@ export class ChimeraChatView extends ItemView {
   // -------------------------------------------------------------------------
   // Private helpers - UI builders
   // -------------------------------------------------------------------------
+
+  /**
+   * Updates the conversational mode toggle button icon and tooltip.
+   */
+  private updateConvModeButton(): void {
+    this.convModeBtn.innerHTML = "";
+    if (this.plugin.settings.conversationalMode) {
+      setIcon(this.convModeBtn, "message-circle");
+      this.convModeBtn.title = "Conversational mode (no file edits) - click to switch to edit mode";
+      this.convModeBtn.addClass("is-active");
+    } else {
+      setIcon(this.convModeBtn, "file-edit");
+      this.convModeBtn.title = "Edit mode (full file access) - click to switch to chat-only";
+      this.convModeBtn.removeClass("is-active");
+    }
+  }
 
   /**
    * Builds the model hover-dropdown in the input toolbar (Claudian pattern).
@@ -1021,6 +1061,9 @@ export class ChimeraChatView extends ItemView {
    * current session.
    */
   private startNewSession(): void {
+    // Reset CLI session ID so the next message starts a fresh CLI session
+    this.plugin.sdkWrapper.setSessionId(null);
+
     const now = new Date().toISOString();
     this.currentSession = {
       sessionId: generateUUID(),

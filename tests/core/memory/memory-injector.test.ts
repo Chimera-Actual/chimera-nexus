@@ -54,6 +54,7 @@ function makeSettings(overrides: Partial<ChimeraSettings> = {}): ChimeraSettings
     excludedTags: [],
     model: "sonnet",
     effortLevel: "high",
+    conversationalMode: false,
     ...overrides,
   };
 }

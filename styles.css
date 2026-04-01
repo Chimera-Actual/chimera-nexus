@@ -1103,6 +1103,38 @@ body.theme-light .chimera-message-content :not(pre) > code {
    Agent creation modal
    --------------------------------------------------------------------------- */
 
+/* ---------------------------------------------------------------------------
+   Conversational mode toggle
+   --------------------------------------------------------------------------- */
+
+.chimera-conv-mode {
+  display: flex;
+  align-items: center;
+}
+.chimera-conv-mode-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  cursor: pointer;
+  color: var(--text-faint);
+  transition: color 0.15s ease, background 0.15s ease;
+}
+.chimera-conv-mode-btn:hover {
+  color: var(--text-normal);
+  background: var(--background-modifier-hover);
+}
+.chimera-conv-mode-btn.is-active {
+  color: var(--chimera-brand);
+}
+.chimera-conv-mode-btn svg { width: 16px; height: 16px; }
+
+/* ---------------------------------------------------------------------------
+   Agent creation modal
+   --------------------------------------------------------------------------- */
+
 .chimera-agent-prompt-input {
   width: 100%;
   min-height: 100px;

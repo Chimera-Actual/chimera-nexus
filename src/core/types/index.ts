@@ -531,6 +531,8 @@ export interface ChimeraSettings {
   model: string;
   /** Effort level for adaptive thinking models. */
   effortLevel: string;
+  /** When true, disables file editing tools for Q&A-only conversations. */
+  conversationalMode: boolean;
 }
 
 /**
@@ -551,6 +553,7 @@ export const DEFAULT_SETTINGS: ChimeraSettings = {
   excludedTags: [],
   model: "sonnet",
   effortLevel: "high",
+  conversationalMode: false,
 };
 
 // ---------------------------------------------------------------------------

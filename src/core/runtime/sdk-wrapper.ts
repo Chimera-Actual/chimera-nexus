@@ -39,6 +39,10 @@ interface CliStreamLine {
   type: string;
   subtype?: string;
   text?: string;
+  session_id?: string;
+  tool?: string;
+  name?: string;
+  input?: unknown;
 }
 
 // ---------------------------------------------------------------------------
@@ -63,10 +67,71 @@ export class SdkWrapper {
    */
   private activeStream: unknown = null;
 
+  /** Active CLI session ID for resumption. */
+  private currentSessionId: string | null = null;
+
+  /** Cached shell environment extracted from the user's profile. */
+  private shellEnv: Record<string, string>;
+
   /**
    * @param settings - Plugin settings containing auth configuration.
    */
-  constructor(private readonly settings: ChimeraSettings) {}
+  constructor(private readonly settings: ChimeraSettings) {
+    this.shellEnv = SdkWrapper.getShellEnvironment();
+  }
+
+  // -------------------------------------------------------------------------
+  // Shell environment extraction
+  // -------------------------------------------------------------------------
+
+  /**
+   * Extracts the user's full shell environment by sourcing their profile files.
+   * On Windows, returns process.env directly.
+   * On Unix, sources .zshrc/.bash_profile/.bashrc to capture PATH and API keys.
+   */
+  private static getShellEnvironment(): Record<string, string> {
+    if (process.platform === "win32") {
+      return { ...process.env } as Record<string, string>;
+    }
+
+    try {
+      const { execSync } = require("child_process") as typeof import("child_process");
+      const os = require("os") as typeof import("os");
+      const path = require("path") as typeof import("path");
+
+      const shell = process.env.SHELL || "/bin/sh";
+      const shellName = path.basename(shell);
+      const homeDir = os.homedir();
+
+      let sourceCommand: string;
+      if (shellName === "zsh") {
+        sourceCommand = `${shell} -c 'source ~/.zshenv 2>/dev/null; source ~/.zprofile 2>/dev/null; source ~/.zshrc 2>/dev/null; env'`;
+      } else if (shellName === "bash") {
+        sourceCommand = `${shell} -c 'source ~/.profile 2>/dev/null; source ~/.bash_profile 2>/dev/null; source ~/.bashrc 2>/dev/null; env'`;
+      } else {
+        sourceCommand = `${shell} -l -c 'env'`;
+      }
+
+      const envOutput = execSync(sourceCommand, {
+        encoding: "utf8",
+        maxBuffer: 10 * 1024 * 1024,
+        timeout: 5000,
+        env: { ...process.env, HOME: homeDir },
+      });
+
+      const env: Record<string, string> = {};
+      for (const line of envOutput.split("\n")) {
+        const idx = line.indexOf("=");
+        if (idx > 0) {
+          env[line.substring(0, idx)] = line.substring(idx + 1);
+        }
+      }
+      return env;
+    } catch {
+      // Fallback to process.env if shell sourcing fails
+      return { ...process.env } as Record<string, string>;
+    }
+  }
 
   // -------------------------------------------------------------------------
   // Public API
@@ -118,12 +183,26 @@ export class SdkWrapper {
     }
   }
 
+  /** Get the current CLI session ID (for persistence across sessions). */
+  getSessionId(): string | null {
+    return this.currentSessionId;
+  }
+
+  /** Set session ID (for restoring from saved sessions). */
+  setSessionId(id: string | null): void {
+    this.currentSessionId = id;
+  }
+
   // -------------------------------------------------------------------------
   // Private implementation - CLI path
   // -------------------------------------------------------------------------
 
   /**
    * Sends a prompt via the `claude` CLI using `--output-format stream-json`.
+   *
+   * Uses the stdin JSON protocol (`--input-format stream-json`) to avoid shell
+   * escaping issues with the prompt. Supports session resumption via `--resume`
+   * and extracts the session ID from system/init events for future resumption.
    *
    * The CLI emits newline-delimited JSON objects. Lines with `type` equal to
    * `"assistant"` and `subtype` equal to `"text"` carry incremental response
@@ -142,13 +221,42 @@ export class SdkWrapper {
     let child: ChildProcess;
 
     try {
-      const args = ["--verbose", "--output-format", "stream-json", "-p", prompt, "--system-prompt", systemPrompt];
+      const args = [
+        "--print",
+        "--verbose",
+        "--output-format", "stream-json",
+        "--input-format", "stream-json",
+      ];
+
+      // Resume existing session
+      if (this.currentSessionId) {
+        args.push("--resume", this.currentSessionId);
+      }
+
+      // System prompt only on first message (no resume ID)
+      if (!this.currentSessionId && systemPrompt) {
+        args.push("--system-prompt", systemPrompt);
+      }
+
+      // Permission mode mapping
+      const permMap: Record<string, string> = {
+        safe: "default",
+        plan: "plan",
+        yolo: "bypassPermissions",
+      };
+      args.push(
+        "--permission-mode",
+        permMap[this.settings.permissionMode] || "default"
+      );
+
+      // Model
       if (this.settings.model) {
         args.push("--model", this.settings.model);
       }
+
       child = spawn(this.settings.cliPath, args, {
         shell: true, // Required for PATH resolution on Windows
-        stdio: ["ignore", "pipe", "pipe"], // Close stdin to suppress "no stdin data" warning
+        env: this.shellEnv,
       });
     } catch (err) {
       callbacks.onError(
@@ -160,6 +268,16 @@ export class SdkWrapper {
     }
 
     this.activeProcess = child;
+
+    // Send prompt via stdin JSON protocol (avoids shell escaping issues)
+    if (child.stdin) {
+      const inputMessage = JSON.stringify({
+        type: "user",
+        message: { role: "user", content: prompt },
+      }) + "\n";
+      child.stdin.write(inputMessage, "utf8");
+      child.stdin.end();
+    }
 
     let fullText = "";
     let lineBuffer = "";
@@ -201,6 +319,11 @@ export class SdkWrapper {
           continue;
         }
 
+        // Extract session ID from system/init events for future resumption
+        if (parsed.type === "system" && parsed.session_id) {
+          this.currentSessionId = String(parsed.session_id);
+        }
+
         if (
           parsed.type === "assistant" &&
           parsed.subtype === "text" &&
@@ -209,6 +332,18 @@ export class SdkWrapper {
           fullText += parsed.text;
           callbacks.onChunk(parsed.text);
         }
+
+        // Detect tool_use events for permission approval awareness
+        if (parsed.type === "tool_use") {
+          const toolName = parsed.tool || parsed.name || "Unknown tool";
+          const toolInput = parsed.input
+            ? JSON.stringify(parsed.input).slice(0, 200)
+            : "";
+          callbacks.onChunk(
+            `\n[Tool: ${toolName}${toolInput ? " - " + toolInput : ""}]\n`
+          );
+        }
+
         // `result` signals the end of output; the exit event will call finish.
       }
     });
