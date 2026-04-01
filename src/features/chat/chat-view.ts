@@ -14,6 +14,8 @@ import {
   Session,
   HookEvent,
   MentionResult,
+  PermissionMode,
+  AuthMethod,
 } from "../../core/types";
 import { SdkWrapper } from "../../core/runtime/sdk-wrapper";
 import { MemoryInjector } from "../../core/memory/memory-injector";
@@ -50,6 +52,7 @@ interface ChimeraNexusPluginRef {
   agentLoader: AgentLoader;
   hookManager: HookManager;
   slashCommands: SlashCommandRegistry;
+  saveSettings(): Promise<void>;
 }
 
 // ---------------------------------------------------------------------------
@@ -63,6 +66,26 @@ function generateUUID(): string {
     const v = c === "x" ? r : (r & 0x3) | 0x8;
     return v.toString(16);
   });
+}
+
+/** Returns a human-readable label for a permission mode value. */
+function permissionLabel(mode: PermissionMode): string {
+  switch (mode) {
+    case PermissionMode.Safe: return "Safe";
+    case PermissionMode.Plan: return "Plan";
+    case PermissionMode.YOLO: return "YOLO";
+    default: return "Safe";
+  }
+}
+
+/** Returns the CSS modifier class name for a permission mode. */
+function permissionClass(mode: PermissionMode): string {
+  switch (mode) {
+    case PermissionMode.Safe: return "is-safe";
+    case PermissionMode.Plan: return "is-plan";
+    case PermissionMode.YOLO: return "is-yolo";
+    default: return "is-safe";
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -93,6 +116,9 @@ export class ChimeraChatView extends ItemView {
   private messagesEl!: HTMLElement;
   private inputEl!: HTMLTextAreaElement;
   private statusBarEl!: HTMLElement;
+  private welcomeEl!: HTMLElement | null;
+  private permissionPillEl!: HTMLElement;
+  private connectionStatusEl!: HTMLElement;
 
   // -------------------------------------------------------------------------
   // State
@@ -154,38 +180,52 @@ export class ChimeraChatView extends ItemView {
     const root = container.createDiv({ cls: "chimera-chat-container" });
 
     // ------------------------------------------------------------------
-    // 1. Agent selector
+    // 1. Header bar
     // ------------------------------------------------------------------
 
-    const selectorArea = root.createDiv({ cls: "chimera-agent-selector" });
+    const header = root.createDiv({ cls: "chimera-header" });
 
-    this.agentSelect = selectorArea.createEl("select");
+    // Title
+    header.createEl("span", { cls: "chimera-header-title", text: "Chimera Nexus" });
+
+    // Agent selector dropdown (compact, in header)
+    this.agentSelect = header.createEl("select");
     const defaultOption = this.agentSelect.createEl("option");
     defaultOption.value = "default";
-    defaultOption.textContent = "Default Chimera";
+    defaultOption.textContent = "Default";
 
-    const newSessionBtn = selectorArea.createEl("button");
-    newSessionBtn.textContent = "New Session";
+    this.agentSelect.addEventListener("change", () => {
+      const value = this.agentSelect.value;
+      this.handleAgentChange(value === "default" ? "" : value);
+    });
+
+    // Permission mode pill
+    this.permissionPillEl = header.createDiv({ cls: "chimera-permission-pill" });
+    this.renderPermissionPill();
+
+    // New session button
+    const newSessionBtn = header.createEl("button", { cls: "chimera-new-session-btn" });
+    newSessionBtn.textContent = "+";
+    newSessionBtn.title = "New Session";
     newSessionBtn.addEventListener("click", () => {
+      this.startNewSession();
+      this.messagesEl.innerHTML = "";
+      this.showWelcome();
       this.updateStatus("New session started.");
     });
 
     // ------------------------------------------------------------------
-    // 2. Session list
+    // 2. Session list (collapsible, hidden by default)
     // ------------------------------------------------------------------
 
     this.sessionListEl = root.createDiv({ cls: "chimera-session-list" });
-    this.sessionListEl.textContent = "No sessions yet";
 
     // ------------------------------------------------------------------
-    // 3. Messages area
+    // 3. Messages area with welcome state
     // ------------------------------------------------------------------
 
     this.messagesEl = root.createDiv({ cls: "chimera-messages" });
-
-    const welcomeMsg = this.messagesEl.createDiv({ cls: "chimera-message" });
-    welcomeMsg.textContent =
-      "Welcome to Chimera Nexus. Select an agent or start chatting.";
+    this.showWelcome();
 
     // ------------------------------------------------------------------
     // 4. Input area
@@ -194,7 +234,7 @@ export class ChimeraChatView extends ItemView {
     const inputArea = root.createDiv({ cls: "chimera-input-area" });
 
     this.inputEl = inputArea.createEl("textarea");
-    this.inputEl.placeholder = "Type a message... (use @agent to delegate)";
+    this.inputEl.placeholder = "Message Chimera... (use @agent to delegate)";
     this.inputEl.rows = 2;
 
     this.inputEl.addEventListener("keydown", (evt: KeyboardEvent) => {
@@ -205,18 +245,21 @@ export class ChimeraChatView extends ItemView {
       // Shift+Enter falls through and inserts a newline naturally.
     });
 
-    const sendBtn = inputArea.createEl("button");
-    sendBtn.textContent = "Send";
+    const sendBtn = inputArea.createEl("button", { cls: "chimera-send-btn" });
+    sendBtn.innerHTML = "&#9654;"; // Right-pointing triangle (play icon)
+    sendBtn.title = "Send message";
     sendBtn.addEventListener("click", () => {
       this.handleSend();
     });
 
     // ------------------------------------------------------------------
-    // 5. Status bar
+    // 5. Status bar with connection indicator
     // ------------------------------------------------------------------
 
     this.statusBarEl = root.createDiv({ cls: "chimera-status-bar" });
-    this.statusBarEl.textContent = "Ready";
+
+    this.connectionStatusEl = this.statusBarEl.createDiv({ cls: "chimera-connection-status" });
+    this.updateConnectionStatus();
 
     // ------------------------------------------------------------------
     // 6. Load agents and wire up AgentSelector
@@ -228,8 +271,16 @@ export class ChimeraChatView extends ItemView {
       // Logged internally by AgentLoader.
     }
 
-    // Replace the manually created select with the AgentSelector component.
-    selectorArea.innerHTML = "";
+    // Populate the header agent dropdown
+    for (const agent of this.agents) {
+      const opt = this.agentSelect.createEl("option");
+      opt.value = agent.name;
+      opt.textContent = agent.name;
+    }
+
+    // Also wire up the AgentSelector component for session list management.
+    // We create a hidden container for it since we use the header dropdown.
+    const selectorArea = root.createDiv({ cls: "chimera-agent-selector" });
     this.agentSelectorComponent = new AgentSelector(
       selectorArea,
       this.agents,
@@ -297,6 +348,9 @@ export class ChimeraChatView extends ItemView {
    * @param content - Plain-text message content to display.
    */
   addMessage(role: "user" | "assistant", content: string): void {
+    // Clear welcome state on first message.
+    this.clearWelcome();
+
     const msgEl = this.messagesEl.createDiv({
       cls: `chimera-message is-${role}`,
     });
@@ -444,7 +498,91 @@ export class ChimeraChatView extends ItemView {
    * @param text - Status message to display (e.g. `"Ready"`, `"Thinking..."`).
    */
   updateStatus(text: string): void {
-    this.statusBarEl.textContent = text;
+    // Update connection status then append the status text.
+    this.updateConnectionStatus();
+
+    // Add a text span after the connection indicator.
+    let statusTextEl = this.statusBarEl.querySelector(".chimera-status-text") as HTMLElement | null;
+    if (!statusTextEl) {
+      statusTextEl = this.statusBarEl.createEl("span", { cls: "chimera-status-text" });
+    }
+    statusTextEl.textContent = text;
+  }
+
+  // -------------------------------------------------------------------------
+  // Private helpers - UI
+  // -------------------------------------------------------------------------
+
+  /**
+   * Shows the centered welcome/empty state in the messages area.
+   */
+  private showWelcome(): void {
+    this.welcomeEl = this.messagesEl.createDiv({ cls: "chimera-welcome" });
+    this.welcomeEl.createDiv({ cls: "chimera-welcome-icon", text: "\uD83E\uDD16" });
+    this.welcomeEl.createEl("h3", { text: "Chimera Nexus" });
+    this.welcomeEl.createEl("p", { text: "Start a conversation, select an agent, or type /help" });
+  }
+
+  /**
+   * Removes the welcome state from the messages area if present.
+   */
+  private clearWelcome(): void {
+    if (this.welcomeEl) {
+      this.welcomeEl.remove();
+      this.welcomeEl = null;
+    }
+  }
+
+  /**
+   * Renders the permission mode pill in the header.
+   */
+  private renderPermissionPill(): void {
+    const mode = this.plugin.settings.permissionMode;
+    this.permissionPillEl.innerHTML = "";
+    this.permissionPillEl.className = `chimera-permission-pill ${permissionClass(mode)}`;
+
+    // Dot indicator
+    this.permissionPillEl.createDiv({ cls: "chimera-permission-pill-dot" });
+
+    // Dropdown inside the pill
+    const select = this.permissionPillEl.createEl("select");
+    for (const pm of [PermissionMode.Safe, PermissionMode.Plan, PermissionMode.YOLO]) {
+      const opt = select.createEl("option");
+      opt.value = pm;
+      opt.textContent = permissionLabel(pm);
+      if (pm === mode) opt.selected = true;
+    }
+
+    select.addEventListener("change", async () => {
+      this.plugin.settings.permissionMode = select.value as PermissionMode;
+      await this.plugin.saveSettings();
+      this.renderPermissionPill();
+    });
+  }
+
+  /**
+   * Updates the connection status indicator in the status bar.
+   */
+  private updateConnectionStatus(): void {
+    this.connectionStatusEl.innerHTML = "";
+
+    const settings = this.plugin.settings;
+    let label: string;
+    let dotClass: string;
+
+    if (settings.authMethod === AuthMethod.CLI) {
+      label = `Connected via CLI (${settings.cliPath})`;
+      dotClass = "is-connected";
+    } else if (settings.authMethod === AuthMethod.APIKey && settings.apiKey) {
+      label = "Connected via API Key";
+      dotClass = "is-connected";
+    } else {
+      label = "Not configured";
+      dotClass = "is-disconnected";
+    }
+
+    this.connectionStatusEl.createDiv({ cls: `chimera-connection-dot ${dotClass}` });
+    this.connectionStatusEl.createEl("span", { text: label });
   }
 
   // -------------------------------------------------------------------------
@@ -488,6 +626,9 @@ export class ChimeraChatView extends ItemView {
    * @returns The content element that should be updated with streaming text.
    */
   private createStreamingMessage(): HTMLElement {
+    // Clear welcome state on streaming start.
+    this.clearWelcome();
+
     const msgEl = this.messagesEl.createDiv({
       cls: "chimera-message is-assistant",
     });
@@ -565,11 +706,13 @@ export class ChimeraChatView extends ItemView {
       this.agentSelectorComponent.setSessions(entries);
     }
 
+    // Sync the header dropdown.
+    this.agentSelect.value = agentName || "default";
+
     // Clear messages area and show welcome for new agent.
     this.messagesEl.innerHTML = "";
     const agentLabel = this.currentAgent?.name ?? "Default Chimera";
-    const welcomeMsg = this.messagesEl.createDiv({ cls: "chimera-message" });
-    welcomeMsg.textContent = `Switched to ${agentLabel}. Start chatting.`;
+    this.showWelcome();
 
     this.updateStatus(`Agent: ${agentLabel}`);
   }
@@ -609,6 +752,7 @@ export class ChimeraChatView extends ItemView {
 
       // Clear messages area and re-render all messages.
       this.messagesEl.innerHTML = "";
+      this.welcomeEl = null;
       for (const msg of session.messages) {
         this.addMessage(msg.role, msg.content);
       }

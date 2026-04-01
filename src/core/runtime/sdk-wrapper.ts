@@ -149,7 +149,9 @@ export class SdkWrapper {
         prompt,
         "--system-prompt",
         systemPrompt,
-      ]);
+      ], {
+        shell: true, // Required for PATH resolution on Windows
+      });
     } catch (err) {
       callbacks.onError(
         new Error(
