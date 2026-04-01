@@ -1,8 +1,10 @@
-import { Vault } from "obsidian";
-import { MemoryInjector } from "../memory/memory-injector";
+import type { Vault } from "obsidian";
+
 import { MemoryExtractor } from "../memory/memory-extractor";
+import { MemoryInjector } from "../memory/memory-injector";
 import { SessionSummarizer } from "../memory/session-summarizer";
-import { ChimeraMemorySettings, DEFAULT_CHIMERA_SETTINGS, Session } from "../types";
+import type { ChimeraMemorySettings, Session } from "../types";
+import { DEFAULT_CHIMERA_SETTINGS } from "../types";
 
 /**
  * Context passed to the memory extractor after a conversation ends.

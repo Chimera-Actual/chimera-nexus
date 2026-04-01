@@ -244,7 +244,7 @@ export async function testMcpServer(server: ClaudianMcpServer): Promise<McpTestR
     };
   }
 
-  const client = new Client({ name: 'claudian-tester', version: '1.0.0' });
+  const client = new Client({ name: 'chimera-tester', version: '1.0.0' });
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 10000);
 

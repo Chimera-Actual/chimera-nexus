@@ -1535,7 +1535,7 @@ export class ClaudianService {
       return null;
     }
 
-    const backupRoot = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'claudian-rewind-'));
+    const backupRoot = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'chimera-rewind-'));
 
     type BackupEntry =
       | { originalPath: string; existedBefore: false }

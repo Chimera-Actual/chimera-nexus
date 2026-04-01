@@ -230,7 +230,7 @@ export default class ClaudianPlugin extends Plugin {
       (leaf) => new ClaudianView(leaf, this)
     );
 
-    this.addRibbonIcon('bot', 'Open Claudian', () => {
+    this.addRibbonIcon('bot', 'Open Chimera Nexus', () => {
       this.activateView();
     });
 

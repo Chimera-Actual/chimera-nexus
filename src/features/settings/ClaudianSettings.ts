@@ -40,7 +40,7 @@ function openHotkeySettings(app: App): void {
       // Handle both old and new Obsidian versions
       const searchEl = tab.searchInputEl ?? tab.searchComponent?.inputEl;
       if (searchEl) {
-        searchEl.value = 'Claudian';
+        searchEl.value = 'Chimera Nexus';
         tab.updateHotkeyVisibility?.();
       }
     }
@@ -67,10 +67,10 @@ function addHotkeySettingRow(
   translationPrefix: string
 ): void {
   const hotkey = getHotkeyForCommand(app, commandId);
-  const item = containerEl.createDiv({ cls: 'claudian-hotkey-item' });
-  item.createSpan({ cls: 'claudian-hotkey-name', text: t(`${translationPrefix}.name` as TranslationKey) });
+  const item = containerEl.createDiv({ cls: 'chimera-hotkey-item' });
+  item.createSpan({ cls: 'chimera-hotkey-name', text: t(`${translationPrefix}.name` as TranslationKey) });
   if (hotkey) {
-    item.createSpan({ cls: 'claudian-hotkey-badge', text: hotkey });
+    item.createSpan({ cls: 'chimera-hotkey-badge', text: hotkey });
   }
   item.addEventListener('click', () => openHotkeySettings(app));
 }
@@ -91,7 +91,7 @@ export class ClaudianSettingTab extends PluginSettingTab {
   display(): void {
     const { containerEl } = this;
     containerEl.empty();
-    containerEl.addClass('claudian-settings');
+    containerEl.addClass('chimera-settings');
 
     setLocale(this.plugin.settings.locale);
 
@@ -163,7 +163,7 @@ export class ClaudianSettingTab extends PluginSettingTab {
             this.plugin.settings.mediaFolder = value.trim();
             await this.plugin.saveSettings();
           });
-        text.inputEl.addClass('claudian-settings-media-input');
+        text.inputEl.addClass('chimera-settings-media-input');
         text.inputEl.addEventListener('blur', () => this.restartServiceForPromptChange());
       });
 
@@ -306,7 +306,7 @@ export class ClaudianSettingTab extends PluginSettingTab {
             await this.plugin.saveSettings();
 
             // Update all views' layouts immediately
-            for (const leaf of this.plugin.app.workspace.getLeavesOfType('claudian-view')) {
+            for (const leaf of this.plugin.app.workspace.getLeavesOfType('chimera-nexus-view')) {
               if (leaf.view instanceof ClaudianView) {
                 leaf.view.updateLayoutForPosition();
               }
@@ -329,7 +329,7 @@ export class ClaudianSettingTab extends PluginSettingTab {
 
     new Setting(containerEl).setName(t('settings.hotkeys')).setHeading();
 
-    const hotkeyGrid = containerEl.createDiv({ cls: 'claudian-hotkey-grid' });
+    const hotkeyGrid = containerEl.createDiv({ cls: 'chimera-hotkey-grid' });
     addHotkeySettingRow(hotkeyGrid, this.app, 'claudian:inline-edit', 'settings.inlineEditHotkey');
     addHotkeySettingRow(hotkeyGrid, this.app, 'claudian:open-view', 'settings.openChatHotkey');
     addHotkeySettingRow(hotkeyGrid, this.app, 'claudian:new-session', 'settings.newSessionHotkey');
@@ -338,7 +338,7 @@ export class ClaudianSettingTab extends PluginSettingTab {
 
     new Setting(containerEl).setName(t('settings.slashCommands.name')).setHeading();
 
-    const slashCommandsDesc = containerEl.createDiv({ cls: 'claudian-sp-settings-desc' });
+    const slashCommandsDesc = containerEl.createDiv({ cls: 'chimera-sp-settings-desc' });
     const descP = slashCommandsDesc.createEl('p', { cls: 'setting-item-description' });
     descP.appendText(t('settings.slashCommands.desc') + ' ');
     descP.createEl('a', {
@@ -346,7 +346,7 @@ export class ClaudianSettingTab extends PluginSettingTab {
       href: 'https://code.claude.com/docs/en/skills',
     });
 
-    const slashCommandsContainer = containerEl.createDiv({ cls: 'claudian-slash-commands-container' });
+    const slashCommandsContainer = containerEl.createDiv({ cls: 'chimera-slash-commands-container' });
     new SlashCommandSettings(slashCommandsContainer, this.plugin);
 
     new Setting(containerEl)
@@ -370,35 +370,35 @@ export class ClaudianSettingTab extends PluginSettingTab {
 
     new Setting(containerEl).setName(t('settings.subagents.name')).setHeading();
 
-    const agentsDesc = containerEl.createDiv({ cls: 'claudian-sp-settings-desc' });
+    const agentsDesc = containerEl.createDiv({ cls: 'chimera-sp-settings-desc' });
     agentsDesc.createEl('p', {
       text: t('settings.subagents.desc'),
       cls: 'setting-item-description',
     });
 
-    const agentsContainer = containerEl.createDiv({ cls: 'claudian-agents-container' });
+    const agentsContainer = containerEl.createDiv({ cls: 'chimera-agents-container' });
     new AgentSettings(agentsContainer, this.plugin);
 
     new Setting(containerEl).setName(t('settings.mcpServers.name')).setHeading();
 
-    const mcpDesc = containerEl.createDiv({ cls: 'claudian-mcp-settings-desc' });
+    const mcpDesc = containerEl.createDiv({ cls: 'chimera-mcp-settings-desc' });
     mcpDesc.createEl('p', {
       text: t('settings.mcpServers.desc'),
       cls: 'setting-item-description',
     });
 
-    const mcpContainer = containerEl.createDiv({ cls: 'claudian-mcp-container' });
+    const mcpContainer = containerEl.createDiv({ cls: 'chimera-mcp-container' });
     new McpSettingsManager(mcpContainer, this.plugin);
 
     new Setting(containerEl).setName(t('settings.plugins.name')).setHeading();
 
-    const pluginsDesc = containerEl.createDiv({ cls: 'claudian-plugin-settings-desc' });
+    const pluginsDesc = containerEl.createDiv({ cls: 'chimera-plugin-settings-desc' });
     pluginsDesc.createEl('p', {
       text: t('settings.plugins.desc'),
       cls: 'setting-item-description',
     });
 
-    const pluginsContainer = containerEl.createDiv({ cls: 'claudian-plugins-container' });
+    const pluginsContainer = containerEl.createDiv({ cls: 'chimera-plugins-container' });
     new PluginSettingsManager(pluginsContainer, this.plugin);
 
     new Setting(containerEl).setName(t('settings.safety')).setHeading();
@@ -525,17 +525,17 @@ export class ClaudianSettingTab extends PluginSettingTab {
           .setValue(this.plugin.settings.environmentVariables);
         text.inputEl.rows = 6;
         text.inputEl.cols = 50;
-        text.inputEl.addClass('claudian-settings-env-textarea');
+        text.inputEl.addClass('chimera-settings-env-textarea');
         text.inputEl.addEventListener('blur', async () => {
           await this.plugin.applyEnvironmentVariables(text.inputEl.value);
           this.renderContextLimitsSection();
         });
       });
 
-    this.contextLimitsContainer = containerEl.createDiv({ cls: 'claudian-context-limits-container' });
+    this.contextLimitsContainer = containerEl.createDiv({ cls: 'chimera-context-limits-container' });
     this.renderContextLimitsSection();
 
-    const envSnippetsContainer = containerEl.createDiv({ cls: 'claudian-env-snippets-container' });
+    const envSnippetsContainer = containerEl.createDiv({ cls: 'chimera-env-snippets-container' });
     new EnvSnippetManager(envSnippetsContainer, this.plugin, () => {
       this.renderContextLimitsSection();
     });
@@ -611,7 +611,7 @@ export class ClaudianSettingTab extends PluginSettingTab {
           })
       );
 
-    const bangBashValidationEl = containerEl.createDiv({ cls: 'claudian-bang-bash-validation' });
+    const bangBashValidationEl = containerEl.createDiv({ cls: 'chimera-bang-bash-validation' });
     bangBashValidationEl.style.color = 'var(--text-error)';
     bangBashValidationEl.style.fontSize = '0.85em';
     bangBashValidationEl.style.marginTop = '-0.5em';
@@ -622,7 +622,7 @@ export class ClaudianSettingTab extends PluginSettingTab {
       .setName(t('settings.maxTabs.name'))
       .setDesc(t('settings.maxTabs.desc'));
 
-    const maxTabsWarningEl = containerEl.createDiv({ cls: 'claudian-max-tabs-warning' });
+    const maxTabsWarningEl = containerEl.createDiv({ cls: 'chimera-max-tabs-warning' });
     maxTabsWarningEl.style.color = 'var(--text-warning)';
     maxTabsWarningEl.style.fontSize = '0.85em';
     maxTabsWarningEl.style.marginTop = '-0.5em';
@@ -658,7 +658,7 @@ export class ClaudianSettingTab extends PluginSettingTab {
       .setName(`${t('settings.cliPath.name')} (${hostnameKey})`)
       .setDesc(cliPathDescription);
 
-    const validationEl = containerEl.createDiv({ cls: 'claudian-cli-path-validation' });
+    const validationEl = containerEl.createDiv({ cls: 'chimera-cli-path-validation' });
     validationEl.style.color = 'var(--text-error)';
     validationEl.style.fontSize = '0.85em';
     validationEl.style.marginTop = '-0.5em';
@@ -714,7 +714,7 @@ export class ClaudianSettingTab extends PluginSettingTab {
             (service) => Promise.resolve(service.cleanup())
           );
         });
-      text.inputEl.addClass('claudian-settings-cli-path-input');
+      text.inputEl.addClass('chimera-settings-cli-path-input');
       text.inputEl.style.width = '100%';
 
       const initialError = validatePath(currentValue);
@@ -742,33 +742,33 @@ export class ClaudianSettingTab extends PluginSettingTab {
       return;
     }
 
-    const headerEl = container.createDiv({ cls: 'claudian-context-limits-header' });
-    headerEl.createSpan({ text: t('settings.customContextLimits.name'), cls: 'claudian-context-limits-label' });
+    const headerEl = container.createDiv({ cls: 'chimera-context-limits-header' });
+    headerEl.createSpan({ text: t('settings.customContextLimits.name'), cls: 'chimera-context-limits-label' });
 
-    const descEl = container.createDiv({ cls: 'claudian-context-limits-desc' });
+    const descEl = container.createDiv({ cls: 'chimera-context-limits-desc' });
     descEl.setText(t('settings.customContextLimits.desc'));
 
-    const listEl = container.createDiv({ cls: 'claudian-context-limits-list' });
+    const listEl = container.createDiv({ cls: 'chimera-context-limits-list' });
 
     for (const modelId of uniqueModelIds) {
       const currentValue = this.plugin.settings.customContextLimits?.[modelId];
 
-      const itemEl = listEl.createDiv({ cls: 'claudian-context-limits-item' });
+      const itemEl = listEl.createDiv({ cls: 'chimera-context-limits-item' });
 
-      const nameEl = itemEl.createDiv({ cls: 'claudian-context-limits-model' });
+      const nameEl = itemEl.createDiv({ cls: 'chimera-context-limits-model' });
       nameEl.setText(modelId);
 
-      const inputWrapper = itemEl.createDiv({ cls: 'claudian-context-limits-input-wrapper' });
+      const inputWrapper = itemEl.createDiv({ cls: 'chimera-context-limits-input-wrapper' });
 
       const inputEl = inputWrapper.createEl('input', {
         type: 'text',
         placeholder: '200k',
-        cls: 'claudian-context-limits-input',
+        cls: 'chimera-context-limits-input',
         value: currentValue ? formatContextLimit(currentValue) : '',
       });
 
       // Validation element
-      const validationEl = inputWrapper.createDiv({ cls: 'claudian-context-limit-validation' });
+      const validationEl = inputWrapper.createDiv({ cls: 'chimera-context-limit-validation' });
 
       inputEl.addEventListener('input', async () => {
         const trimmed = inputEl.value.trim();
@@ -781,19 +781,19 @@ export class ClaudianSettingTab extends PluginSettingTab {
           // Empty = use default (remove from custom limits)
           delete this.plugin.settings.customContextLimits[modelId];
           validationEl.style.display = 'none';
-          inputEl.classList.remove('claudian-input-error');
+          inputEl.classList.remove('chimera-input-error');
         } else {
           const parsed = parseContextLimit(trimmed);
           if (parsed === null) {
             validationEl.setText(t('settings.customContextLimits.invalid'));
             validationEl.style.display = 'block';
-            inputEl.classList.add('claudian-input-error');
+            inputEl.classList.add('chimera-input-error');
             return; // Don't save invalid value
           }
 
           this.plugin.settings.customContextLimits[modelId] = parsed;
           validationEl.style.display = 'none';
-          inputEl.classList.remove('claudian-input-error');
+          inputEl.classList.remove('chimera-input-error');
         }
 
         await this.plugin.saveSettings();

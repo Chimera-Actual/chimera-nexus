@@ -49,7 +49,7 @@ export class ModelSelector {
 
   constructor(parentEl: HTMLElement, callbacks: ToolbarCallbacks) {
     this.callbacks = callbacks;
-    this.container = parentEl.createDiv({ cls: 'claudian-model-selector' });
+    this.container = parentEl.createDiv({ cls: 'chimera-model-selector' });
     this.render();
   }
 
@@ -72,11 +72,11 @@ export class ModelSelector {
   private render() {
     this.container.empty();
 
-    this.buttonEl = this.container.createDiv({ cls: 'claudian-model-btn' });
+    this.buttonEl = this.container.createDiv({ cls: 'chimera-model-btn' });
     this.setReady(this.isReady);
     this.updateDisplay();
 
-    this.dropdownEl = this.container.createDiv({ cls: 'claudian-model-dropdown' });
+    this.dropdownEl = this.container.createDiv({ cls: 'chimera-model-dropdown' });
     this.renderOptions();
   }
 
@@ -90,7 +90,7 @@ export class ModelSelector {
 
     this.buttonEl.empty();
 
-    const labelEl = this.buttonEl.createSpan({ cls: 'claudian-model-label' });
+    const labelEl = this.buttonEl.createSpan({ cls: 'chimera-model-label' });
     labelEl.setText(displayModel?.label || 'Unknown');
   }
 
@@ -107,7 +107,7 @@ export class ModelSelector {
     const models = this.getAvailableModels();
 
     for (const model of [...models].reverse()) {
-      const option = this.dropdownEl.createDiv({ cls: 'claudian-model-option' });
+      const option = this.dropdownEl.createDiv({ cls: 'chimera-model-option' });
       if (model.value === currentModel) {
         option.addClass('selected');
       }
@@ -137,7 +137,7 @@ export class ThinkingBudgetSelector {
 
   constructor(parentEl: HTMLElement, callbacks: ToolbarCallbacks) {
     this.callbacks = callbacks;
-    this.container = parentEl.createDiv({ cls: 'claudian-thinking-selector' });
+    this.container = parentEl.createDiv({ cls: 'chimera-thinking-selector' });
     this.render();
   }
 
@@ -145,16 +145,16 @@ export class ThinkingBudgetSelector {
     this.container.empty();
 
     // Effort selector (for adaptive thinking models)
-    this.effortEl = this.container.createDiv({ cls: 'claudian-thinking-effort' });
-    const effortLabel = this.effortEl.createSpan({ cls: 'claudian-thinking-label-text' });
+    this.effortEl = this.container.createDiv({ cls: 'chimera-thinking-effort' });
+    const effortLabel = this.effortEl.createSpan({ cls: 'chimera-thinking-label-text' });
     effortLabel.setText('Effort:');
-    this.effortGearsEl = this.effortEl.createDiv({ cls: 'claudian-thinking-gears' });
+    this.effortGearsEl = this.effortEl.createDiv({ cls: 'chimera-thinking-gears' });
 
     // Legacy budget selector (for custom models)
-    this.budgetEl = this.container.createDiv({ cls: 'claudian-thinking-budget' });
-    const budgetLabel = this.budgetEl.createSpan({ cls: 'claudian-thinking-label-text' });
+    this.budgetEl = this.container.createDiv({ cls: 'chimera-thinking-budget' });
+    const budgetLabel = this.budgetEl.createSpan({ cls: 'chimera-thinking-label-text' });
     budgetLabel.setText('Thinking:');
-    this.budgetGearsEl = this.budgetEl.createDiv({ cls: 'claudian-thinking-gears' });
+    this.budgetGearsEl = this.budgetEl.createDiv({ cls: 'chimera-thinking-gears' });
 
     this.updateDisplay();
   }
@@ -166,13 +166,13 @@ export class ThinkingBudgetSelector {
     const currentEffort = this.callbacks.getSettings().effortLevel;
     const currentInfo = EFFORT_LEVELS.find(e => e.value === currentEffort);
 
-    const currentEl = this.effortGearsEl.createDiv({ cls: 'claudian-thinking-current' });
+    const currentEl = this.effortGearsEl.createDiv({ cls: 'chimera-thinking-current' });
     currentEl.setText(currentInfo?.label || 'High');
 
-    const optionsEl = this.effortGearsEl.createDiv({ cls: 'claudian-thinking-options' });
+    const optionsEl = this.effortGearsEl.createDiv({ cls: 'chimera-thinking-options' });
 
     for (const effort of [...EFFORT_LEVELS].reverse()) {
-      const gearEl = optionsEl.createDiv({ cls: 'claudian-thinking-gear' });
+      const gearEl = optionsEl.createDiv({ cls: 'chimera-thinking-gear' });
       gearEl.setText(effort.label);
 
       if (effort.value === currentEffort) {
@@ -194,13 +194,13 @@ export class ThinkingBudgetSelector {
     const currentBudget = this.callbacks.getSettings().thinkingBudget;
     const currentBudgetInfo = THINKING_BUDGETS.find(b => b.value === currentBudget);
 
-    const currentEl = this.budgetGearsEl.createDiv({ cls: 'claudian-thinking-current' });
+    const currentEl = this.budgetGearsEl.createDiv({ cls: 'chimera-thinking-current' });
     currentEl.setText(currentBudgetInfo?.label || 'Off');
 
-    const optionsEl = this.budgetGearsEl.createDiv({ cls: 'claudian-thinking-options' });
+    const optionsEl = this.budgetGearsEl.createDiv({ cls: 'chimera-thinking-options' });
 
     for (const budget of [...THINKING_BUDGETS].reverse()) {
-      const gearEl = optionsEl.createDiv({ cls: 'claudian-thinking-gear' });
+      const gearEl = optionsEl.createDiv({ cls: 'chimera-thinking-gear' });
       gearEl.setText(budget.label);
       gearEl.setAttribute('title', budget.tokens > 0 ? `${budget.tokens.toLocaleString()} tokens` : 'Disabled');
 
@@ -243,15 +243,15 @@ export class PermissionToggle {
 
   constructor(parentEl: HTMLElement, callbacks: ToolbarCallbacks) {
     this.callbacks = callbacks;
-    this.container = parentEl.createDiv({ cls: 'claudian-permission-toggle' });
+    this.container = parentEl.createDiv({ cls: 'chimera-permission-toggle' });
     this.render();
   }
 
   private render() {
     this.container.empty();
 
-    this.labelEl = this.container.createSpan({ cls: 'claudian-permission-label' });
-    this.toggleEl = this.container.createDiv({ cls: 'claudian-toggle-switch' });
+    this.labelEl = this.container.createSpan({ cls: 'chimera-permission-label' });
+    this.toggleEl = this.container.createDiv({ cls: 'chimera-toggle-switch' });
 
     this.updateDisplay();
 
@@ -312,7 +312,7 @@ export class ExternalContextSelector {
 
   constructor(parentEl: HTMLElement, callbacks: ToolbarCallbacks) {
     this.callbacks = callbacks;
-    this.container = parentEl.createDiv({ cls: 'claudian-external-context-selector' });
+    this.container = parentEl.createDiv({ cls: 'chimera-external-context-selector' });
     this.render();
   }
 
@@ -474,12 +474,12 @@ export class ExternalContextSelector {
   private render() {
     this.container.empty();
 
-    const iconWrapper = this.container.createDiv({ cls: 'claudian-external-context-icon-wrapper' });
+    const iconWrapper = this.container.createDiv({ cls: 'chimera-external-context-icon-wrapper' });
 
-    this.iconEl = iconWrapper.createDiv({ cls: 'claudian-external-context-icon' });
+    this.iconEl = iconWrapper.createDiv({ cls: 'chimera-external-context-icon' });
     setIcon(this.iconEl, 'folder');
 
-    this.badgeEl = iconWrapper.createDiv({ cls: 'claudian-external-context-badge' });
+    this.badgeEl = iconWrapper.createDiv({ cls: 'chimera-external-context-badge' });
 
     this.updateDisplay();
 
@@ -489,7 +489,7 @@ export class ExternalContextSelector {
       this.openFolderPicker();
     });
 
-    this.dropdownEl = this.container.createDiv({ cls: 'claudian-external-context-dropdown' });
+    this.dropdownEl = this.container.createDiv({ cls: 'chimera-external-context-dropdown' });
     this.renderDropdown();
   }
 
@@ -544,20 +544,20 @@ export class ExternalContextSelector {
     this.dropdownEl.empty();
 
     // Header
-    const headerEl = this.dropdownEl.createDiv({ cls: 'claudian-external-context-header' });
+    const headerEl = this.dropdownEl.createDiv({ cls: 'chimera-external-context-header' });
     headerEl.setText('External Contexts');
 
     // Path list
-    const listEl = this.dropdownEl.createDiv({ cls: 'claudian-external-context-list' });
+    const listEl = this.dropdownEl.createDiv({ cls: 'chimera-external-context-list' });
 
     if (this.externalContextPaths.length === 0) {
-      const emptyEl = listEl.createDiv({ cls: 'claudian-external-context-empty' });
+      const emptyEl = listEl.createDiv({ cls: 'chimera-external-context-empty' });
       emptyEl.setText('Click folder icon to add');
     } else {
       for (const pathStr of this.externalContextPaths) {
-        const itemEl = listEl.createDiv({ cls: 'claudian-external-context-item' });
+        const itemEl = listEl.createDiv({ cls: 'chimera-external-context-item' });
 
-        const pathTextEl = itemEl.createSpan({ cls: 'claudian-external-context-text' });
+        const pathTextEl = itemEl.createSpan({ cls: 'chimera-external-context-text' });
         // Show shortened path for display
         const displayPath = this.shortenPath(pathStr);
         pathTextEl.setText(displayPath);
@@ -565,7 +565,7 @@ export class ExternalContextSelector {
 
         // Lock toggle button
         const isPersistent = this.persistentPaths.has(pathStr);
-        const lockBtn = itemEl.createSpan({ cls: 'claudian-external-context-lock' });
+        const lockBtn = itemEl.createSpan({ cls: 'chimera-external-context-lock' });
         if (isPersistent) {
           lockBtn.addClass('locked');
         }
@@ -576,7 +576,7 @@ export class ExternalContextSelector {
           this.togglePersistence(pathStr);
         });
 
-        const removeBtn = itemEl.createSpan({ cls: 'claudian-external-context-remove' });
+        const removeBtn = itemEl.createSpan({ cls: 'chimera-external-context-remove' });
         setIcon(removeBtn, 'x');
         removeBtn.setAttribute('title', 'Remove path');
         removeBtn.addEventListener('click', (e) => {
@@ -647,7 +647,7 @@ export class McpServerSelector {
   private onChangeCallback: ((enabled: Set<string>) => void) | null = null;
 
   constructor(parentEl: HTMLElement) {
-    this.container = parentEl.createDiv({ cls: 'claudian-mcp-selector' });
+    this.container = parentEl.createDiv({ cls: 'chimera-mcp-selector' });
     this.render();
   }
 
@@ -711,16 +711,16 @@ export class McpServerSelector {
   private render() {
     this.container.empty();
 
-    const iconWrapper = this.container.createDiv({ cls: 'claudian-mcp-selector-icon-wrapper' });
+    const iconWrapper = this.container.createDiv({ cls: 'chimera-mcp-selector-icon-wrapper' });
 
-    this.iconEl = iconWrapper.createDiv({ cls: 'claudian-mcp-selector-icon' });
+    this.iconEl = iconWrapper.createDiv({ cls: 'chimera-mcp-selector-icon' });
     this.iconEl.innerHTML = MCP_ICON_SVG;
 
-    this.badgeEl = iconWrapper.createDiv({ cls: 'claudian-mcp-selector-badge' });
+    this.badgeEl = iconWrapper.createDiv({ cls: 'chimera-mcp-selector-badge' });
 
     this.updateDisplay();
 
-    this.dropdownEl = this.container.createDiv({ cls: 'claudian-mcp-selector-dropdown' });
+    this.dropdownEl = this.container.createDiv({ cls: 'chimera-mcp-selector-dropdown' });
     this.renderDropdown();
 
     // Re-render dropdown content on hover (CSS handles visibility)
@@ -735,17 +735,17 @@ export class McpServerSelector {
     this.dropdownEl.empty();
 
     // Header
-    const headerEl = this.dropdownEl.createDiv({ cls: 'claudian-mcp-selector-header' });
+    const headerEl = this.dropdownEl.createDiv({ cls: 'chimera-mcp-selector-header' });
     headerEl.setText('MCP Servers');
 
     // Server list
-    const listEl = this.dropdownEl.createDiv({ cls: 'claudian-mcp-selector-list' });
+    const listEl = this.dropdownEl.createDiv({ cls: 'chimera-mcp-selector-list' });
 
     const allServers = this.mcpManager?.getServers() || [];
     const servers = allServers.filter(s => s.enabled);
 
     if (servers.length === 0) {
-      const emptyEl = listEl.createDiv({ cls: 'claudian-mcp-selector-empty' });
+      const emptyEl = listEl.createDiv({ cls: 'chimera-mcp-selector-empty' });
       emptyEl.setText(allServers.length === 0 ? 'No MCP servers configured' : 'All MCP servers disabled');
       return;
     }
@@ -756,7 +756,7 @@ export class McpServerSelector {
   }
 
   private renderServerItem(listEl: HTMLElement, server: ClaudianMcpServer) {
-    const itemEl = listEl.createDiv({ cls: 'claudian-mcp-selector-item' });
+    const itemEl = listEl.createDiv({ cls: 'chimera-mcp-selector-item' });
     itemEl.dataset.serverName = server.name;
 
     const isEnabled = this.enabledServers.has(server.name);
@@ -765,20 +765,20 @@ export class McpServerSelector {
     }
 
     // Checkbox
-    const checkEl = itemEl.createDiv({ cls: 'claudian-mcp-selector-check' });
+    const checkEl = itemEl.createDiv({ cls: 'chimera-mcp-selector-check' });
     if (isEnabled) {
       checkEl.innerHTML = CHECK_ICON_SVG;
     }
 
     // Info
-    const infoEl = itemEl.createDiv({ cls: 'claudian-mcp-selector-item-info' });
+    const infoEl = itemEl.createDiv({ cls: 'chimera-mcp-selector-item-info' });
 
-    const nameEl = infoEl.createSpan({ cls: 'claudian-mcp-selector-item-name' });
+    const nameEl = infoEl.createSpan({ cls: 'chimera-mcp-selector-item-name' });
     nameEl.setText(server.name);
 
     // Badges
     if (server.contextSaving) {
-      const csEl = infoEl.createSpan({ cls: 'claudian-mcp-selector-cs-badge' });
+      const csEl = infoEl.createSpan({ cls: 'chimera-mcp-selector-cs-badge' });
       csEl.setText('@');
       csEl.setAttribute('title', 'Context-saving: can also enable via @' + server.name);
     }
@@ -800,7 +800,7 @@ export class McpServerSelector {
 
     // Update item visually in-place (immediate feedback)
     const isEnabled = this.enabledServers.has(name);
-    const checkEl = itemEl.querySelector('.claudian-mcp-selector-check') as HTMLElement | null;
+    const checkEl = itemEl.querySelector('.chimera-mcp-selector-check') as HTMLElement | null;
 
     if (isEnabled) {
       itemEl.addClass('enabled');
@@ -854,7 +854,7 @@ export class ContextUsageMeter {
   private circumference: number = 0;
 
   constructor(parentEl: HTMLElement) {
-    this.container = parentEl.createDiv({ cls: 'claudian-context-meter' });
+    this.container = parentEl.createDiv({ cls: 'chimera-context-meter' });
     this.render();
     // Initially hidden
     this.container.style.display = 'none';
@@ -881,21 +881,21 @@ export class ContextUsageMeter {
     const x2 = cx + radius * Math.cos(endRad);
     const y2 = cy + radius * Math.sin(endRad);
 
-    const gaugeEl = this.container.createDiv({ cls: 'claudian-context-meter-gauge' });
+    const gaugeEl = this.container.createDiv({ cls: 'chimera-context-meter-gauge' });
     gaugeEl.innerHTML = `
       <svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
-        <path class="claudian-meter-bg"
+        <path class="chimera-meter-bg"
           d="M ${x1} ${y1} A ${radius} ${radius} 0 1 1 ${x2} ${y2}"
           fill="none" stroke-width="${strokeWidth}" stroke-linecap="round"/>
-        <path class="claudian-meter-fill"
+        <path class="chimera-meter-fill"
           d="M ${x1} ${y1} A ${radius} ${radius} 0 1 1 ${x2} ${y2}"
           fill="none" stroke-width="${strokeWidth}" stroke-linecap="round"
           stroke-dasharray="${this.circumference}" stroke-dashoffset="${this.circumference}"/>
       </svg>
     `;
-    this.fillPath = gaugeEl.querySelector('.claudian-meter-fill');
+    this.fillPath = gaugeEl.querySelector('.chimera-meter-fill');
 
-    this.percentEl = this.container.createSpan({ cls: 'claudian-context-meter-percent' });
+    this.percentEl = this.container.createSpan({ cls: 'chimera-context-meter-percent' });
   }
 
   update(usage: UsageInfo | null): void {

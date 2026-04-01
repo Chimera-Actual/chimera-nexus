@@ -1,24 +1,24 @@
-.claudian-subagent-list {
+.chimera-subagent-list {
   margin: 8px 0;
 }
 
-.claudian-text-block+.claudian-subagent-list {
+.chimera-text-block+.chimera-subagent-list {
   margin-top: 8px;
 }
 
-.claudian-subagent-list+.claudian-text-block {
+.chimera-subagent-list+.chimera-text-block {
   margin-top: 8px;
 }
 
-.claudian-tool-call+.claudian-subagent-list {
+.chimera-tool-call+.chimera-subagent-list {
   margin-top: 8px;
 }
 
-.claudian-subagent-list+.claudian-tool-call {
+.chimera-subagent-list+.chimera-tool-call {
   margin-top: 8px;
 }
 
-.claudian-subagent-header {
+.chimera-subagent-header {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -27,19 +27,19 @@
   overflow: hidden;
 }
 
-.claudian-subagent-icon {
+.chimera-subagent-icon {
   display: flex;
   align-items: center;
   color: var(--interactive-accent);
   flex-shrink: 0;
 }
 
-.claudian-subagent-icon svg {
+.chimera-subagent-icon svg {
   width: 16px;
   height: 16px;
 }
 
-.claudian-subagent-label {
+.chimera-subagent-label {
   flex: 1;
   font-family: var(--font-monospace);
   font-size: 13px;
@@ -47,47 +47,47 @@
   color: var(--text-normal);
 }
 
-.claudian-subagent-count {
+.chimera-subagent-count {
   font-size: 11px;
   color: var(--text-muted);
   flex-shrink: 0;
 }
 
-.claudian-subagent-status {
+.chimera-subagent-status {
   display: flex;
   align-items: center;
   flex-shrink: 0;
 }
 
-.claudian-subagent-status svg {
+.chimera-subagent-status svg {
   width: 14px;
   height: 14px;
 }
 
-.claudian-subagent-status.status-running {
+.chimera-subagent-status.status-running {
   color: var(--text-accent);
 }
 
-.claudian-subagent-status.status-completed {
+.chimera-subagent-status.status-completed {
   color: var(--color-green);
 }
 
-.claudian-subagent-status.status-error {
+.chimera-subagent-status.status-error {
   color: var(--color-red);
 }
 
-.claudian-subagent-content {
+.chimera-subagent-content {
   padding: 4px 0;
   padding-inline-start: 16px;
   margin-inline-start: 7px;
   border-inline-start: 2px solid var(--background-modifier-border);
 }
 
-.claudian-subagent-section {
+.chimera-subagent-section {
   margin: 2px 0 6px;
 }
 
-.claudian-subagent-section-header {
+.chimera-subagent-section-header {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -99,21 +99,21 @@
   padding: 2px 0;
 }
 
-.claudian-subagent-section-header:hover {
+.chimera-subagent-section-header:hover {
   color: var(--text-normal);
 }
 
-.claudian-subagent-section-title {
+.chimera-subagent-section-title {
   flex: 1;
   min-width: 0;
 }
 
-.claudian-subagent-section-body {
+.chimera-subagent-section-body {
   padding-inline-start: 6px;
 }
 
-.claudian-subagent-prompt-text,
-.claudian-subagent-result-output {
+.chimera-subagent-prompt-text,
+.chimera-subagent-result-output {
   font-family: var(--font-monospace);
   font-size: 12px;
   line-height: 1.4;
@@ -122,22 +122,22 @@
   word-break: break-word;
 }
 
-.claudian-subagent-result-output {
+.chimera-subagent-result-output {
   max-height: 220px;
   overflow-y: auto;
 }
 
-.claudian-subagent-tools {
+.chimera-subagent-tools {
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
 
-.claudian-subagent-tool-item {
+.chimera-subagent-tool-item {
   display: block;
 }
 
-.claudian-subagent-tool-header {
+.chimera-subagent-tool-header {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -146,23 +146,23 @@
   padding: 2px 0;
 }
 
-.claudian-subagent-tool-header:hover {
+.chimera-subagent-tool-header:hover {
   opacity: 0.85;
 }
 
-.claudian-subagent-tool-icon {
+.chimera-subagent-tool-icon {
   display: flex;
   align-items: center;
   color: var(--text-accent);
   flex-shrink: 0;
 }
 
-.claudian-subagent-tool-icon svg {
+.chimera-subagent-tool-icon svg {
   width: 13px;
   height: 13px;
 }
 
-.claudian-subagent-tool-name {
+.chimera-subagent-tool-name {
   font-family: var(--font-monospace);
   font-size: 12px;
   color: var(--text-normal);
@@ -170,7 +170,7 @@
   flex-shrink: 0;
 }
 
-.claudian-subagent-tool-summary {
+.chimera-subagent-tool-summary {
   font-family: var(--font-monospace);
   font-size: 12px;
   color: var(--text-muted);
@@ -181,35 +181,35 @@
   min-width: 0;
 }
 
-.claudian-subagent-tool-status {
+.chimera-subagent-tool-status {
   display: flex;
   align-items: center;
   flex-shrink: 0;
 }
 
-.claudian-subagent-tool-status svg {
+.chimera-subagent-tool-status svg {
   width: 12px;
   height: 12px;
 }
 
-.claudian-subagent-tool-status.status-running {
+.chimera-subagent-tool-status.status-running {
   color: var(--text-accent);
 }
 
-.claudian-subagent-tool-status.status-completed {
+.chimera-subagent-tool-status.status-completed {
   color: var(--color-green);
 }
 
-.claudian-subagent-tool-status.status-error,
-.claudian-subagent-tool-status.status-blocked {
+.chimera-subagent-tool-status.status-error,
+.chimera-subagent-tool-status.status-blocked {
   color: var(--color-red);
 }
 
-.claudian-subagent-tool-content {
+.chimera-subagent-tool-content {
   padding: 2px 0 2px 16px;
 }
 
-.claudian-subagent-tool-empty {
+.chimera-subagent-tool-empty {
   color: var(--text-faint);
   font-style: italic;
   font-family: var(--font-monospace);
@@ -217,7 +217,7 @@
   padding: 2px 0;
 }
 
-.claudian-subagent-status-text {
+.chimera-subagent-status-text {
   font-size: 11px;
   font-family: var(--font-monospace);
   color: var(--text-muted);
@@ -225,30 +225,30 @@
   padding-inline-start: 8px;
 }
 
-.claudian-subagent-list.async .claudian-subagent-icon {
+.chimera-subagent-list.async .chimera-subagent-icon {
   color: var(--interactive-accent);
 }
 
-.claudian-subagent-list.async.pending .claudian-subagent-status-text {
+.chimera-subagent-list.async.pending .chimera-subagent-status-text {
   color: var(--text-muted);
 }
 
-.claudian-subagent-list.async.running .claudian-subagent-status-text {
+.chimera-subagent-list.async.running .chimera-subagent-status-text {
   color: var(--text-accent);
 }
 
-.claudian-subagent-list.async.awaiting .claudian-subagent-status-text {
+.chimera-subagent-list.async.awaiting .chimera-subagent-status-text {
   color: var(--color-yellow);
 }
 
-.claudian-subagent-list.async.completed .claudian-subagent-status-text {
+.chimera-subagent-list.async.completed .chimera-subagent-status-text {
   color: var(--color-green);
 }
 
-.claudian-subagent-list.async.error .claudian-subagent-status-text {
+.chimera-subagent-list.async.error .chimera-subagent-status-text {
   color: var(--color-red);
 }
 
-.claudian-subagent-list.async.orphaned .claudian-subagent-status-text {
+.chimera-subagent-list.async.orphaned .chimera-subagent-status-text {
   color: var(--color-orange);
 }

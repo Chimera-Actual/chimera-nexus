@@ -5,10 +5,12 @@
  * {@link SessionSummary} suitable for long-term storage and retrieval.
  */
 
-import { Vault, normalizePath } from "obsidian";
-import { Session, SessionSummary } from "../types";
-import { estimateTokens } from "../utils/token-counter";
+import type { Vault} from "obsidian";
+import { normalizePath } from "obsidian";
+
+import type { Session, SessionSummary } from "../types";
 import { stringifyFrontmatter } from "../utils/frontmatter";
+import { estimateTokens } from "../utils/token-counter";
 
 // ---------------------------------------------------------------------------
 // Constants

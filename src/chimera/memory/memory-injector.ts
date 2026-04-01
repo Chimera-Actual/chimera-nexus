@@ -6,8 +6,11 @@
  * and are NOT included here.
  */
 
-import { Vault, normalizePath } from "obsidian";
-import { MemoryFile, MemoryTier, ChimeraMemorySettings, PermissionMode } from "../types";
+import type { Vault} from "obsidian";
+import { normalizePath } from "obsidian";
+
+import type { ChimeraMemorySettings,MemoryFile} from "../types";
+import { MemoryTier, PermissionMode } from "../types";
 import { parseFrontmatter } from "../utils/frontmatter";
 import { estimateTokens, truncateToTokenBudget } from "../utils/token-counter";
 

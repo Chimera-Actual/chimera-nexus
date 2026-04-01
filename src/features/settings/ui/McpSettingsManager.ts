@@ -40,36 +40,36 @@ export class McpSettingsManager {
   private render() {
     this.containerEl.empty();
 
-    const headerEl = this.containerEl.createDiv({ cls: 'claudian-mcp-header' });
-    headerEl.createSpan({ text: 'MCP Servers', cls: 'claudian-mcp-label' });
+    const headerEl = this.containerEl.createDiv({ cls: 'chimera-mcp-header' });
+    headerEl.createSpan({ text: 'MCP Servers', cls: 'chimera-mcp-label' });
 
-    const addContainer = headerEl.createDiv({ cls: 'claudian-mcp-add-container' });
+    const addContainer = headerEl.createDiv({ cls: 'chimera-mcp-add-container' });
     const addBtn = addContainer.createEl('button', {
-      cls: 'claudian-settings-action-btn',
+      cls: 'chimera-settings-action-btn',
       attr: { 'aria-label': 'Add' },
     });
     setIcon(addBtn, 'plus');
 
-    const dropdown = addContainer.createDiv({ cls: 'claudian-mcp-add-dropdown' });
+    const dropdown = addContainer.createDiv({ cls: 'chimera-mcp-add-dropdown' });
 
-    const stdioOption = dropdown.createDiv({ cls: 'claudian-mcp-add-option' });
-    setIcon(stdioOption.createSpan({ cls: 'claudian-mcp-add-option-icon' }), 'terminal');
+    const stdioOption = dropdown.createDiv({ cls: 'chimera-mcp-add-option' });
+    setIcon(stdioOption.createSpan({ cls: 'chimera-mcp-add-option-icon' }), 'terminal');
     stdioOption.createSpan({ text: 'stdio (local command)' });
     stdioOption.addEventListener('click', () => {
       dropdown.removeClass('is-visible');
       this.openModal(null, 'stdio');
     });
 
-    const httpOption = dropdown.createDiv({ cls: 'claudian-mcp-add-option' });
-    setIcon(httpOption.createSpan({ cls: 'claudian-mcp-add-option-icon' }), 'globe');
+    const httpOption = dropdown.createDiv({ cls: 'chimera-mcp-add-option' });
+    setIcon(httpOption.createSpan({ cls: 'chimera-mcp-add-option-icon' }), 'globe');
     httpOption.createSpan({ text: 'http / sse (remote)' });
     httpOption.addEventListener('click', () => {
       dropdown.removeClass('is-visible');
       this.openModal(null, 'http');
     });
 
-    const importOption = dropdown.createDiv({ cls: 'claudian-mcp-add-option' });
-    setIcon(importOption.createSpan({ cls: 'claudian-mcp-add-option-icon' }), 'clipboard-paste');
+    const importOption = dropdown.createDiv({ cls: 'chimera-mcp-add-option' });
+    setIcon(importOption.createSpan({ cls: 'chimera-mcp-add-option-icon' }), 'clipboard-paste');
     importOption.createSpan({ text: 'Import from clipboard' });
     importOption.addEventListener('click', () => {
       dropdown.removeClass('is-visible');
@@ -86,77 +86,77 @@ export class McpSettingsManager {
     });
 
     if (this.servers.length === 0) {
-      const emptyEl = this.containerEl.createDiv({ cls: 'claudian-mcp-empty' });
+      const emptyEl = this.containerEl.createDiv({ cls: 'chimera-mcp-empty' });
       emptyEl.setText('No MCP servers configured. Click "Add" to add one.');
       return;
     }
 
-    const listEl = this.containerEl.createDiv({ cls: 'claudian-mcp-list' });
+    const listEl = this.containerEl.createDiv({ cls: 'chimera-mcp-list' });
     for (const server of this.servers) {
       this.renderServerItem(listEl, server);
     }
   }
 
   private renderServerItem(listEl: HTMLElement, server: ClaudianMcpServer) {
-    const itemEl = listEl.createDiv({ cls: 'claudian-mcp-item' });
+    const itemEl = listEl.createDiv({ cls: 'chimera-mcp-item' });
     if (!server.enabled) {
-      itemEl.addClass('claudian-mcp-item-disabled');
+      itemEl.addClass('chimera-mcp-item-disabled');
     }
 
-    const statusEl = itemEl.createDiv({ cls: 'claudian-mcp-status' });
+    const statusEl = itemEl.createDiv({ cls: 'chimera-mcp-status' });
     statusEl.addClass(
-      server.enabled ? 'claudian-mcp-status-enabled' : 'claudian-mcp-status-disabled'
+      server.enabled ? 'chimera-mcp-status-enabled' : 'chimera-mcp-status-disabled'
     );
 
-    const infoEl = itemEl.createDiv({ cls: 'claudian-mcp-info' });
+    const infoEl = itemEl.createDiv({ cls: 'chimera-mcp-info' });
 
-    const nameRow = infoEl.createDiv({ cls: 'claudian-mcp-name-row' });
+    const nameRow = infoEl.createDiv({ cls: 'chimera-mcp-name-row' });
 
-    const nameEl = nameRow.createSpan({ cls: 'claudian-mcp-name' });
+    const nameEl = nameRow.createSpan({ cls: 'chimera-mcp-name' });
     nameEl.setText(server.name);
 
     const serverType = getMcpServerType(server.config);
-    const typeEl = nameRow.createSpan({ cls: 'claudian-mcp-type-badge' });
+    const typeEl = nameRow.createSpan({ cls: 'chimera-mcp-type-badge' });
     typeEl.setText(serverType);
 
     if (server.contextSaving) {
-      const csEl = nameRow.createSpan({ cls: 'claudian-mcp-context-saving-badge' });
+      const csEl = nameRow.createSpan({ cls: 'chimera-mcp-context-saving-badge' });
       csEl.setText('@');
       csEl.setAttribute('title', 'Context-saving: mention with @' + server.name + ' to enable');
     }
 
-    const previewEl = infoEl.createDiv({ cls: 'claudian-mcp-preview' });
+    const previewEl = infoEl.createDiv({ cls: 'chimera-mcp-preview' });
     if (server.description) {
       previewEl.setText(server.description);
     } else {
       previewEl.setText(this.getServerPreview(server, serverType));
     }
 
-    const actionsEl = itemEl.createDiv({ cls: 'claudian-mcp-actions' });
+    const actionsEl = itemEl.createDiv({ cls: 'chimera-mcp-actions' });
 
     const testBtn = actionsEl.createEl('button', {
-      cls: 'claudian-mcp-action-btn',
+      cls: 'chimera-mcp-action-btn',
       attr: { 'aria-label': 'Verify (show tools)' },
     });
     setIcon(testBtn, 'zap');
     testBtn.addEventListener('click', () => this.testServer(server));
 
     const toggleBtn = actionsEl.createEl('button', {
-      cls: 'claudian-mcp-action-btn',
+      cls: 'chimera-mcp-action-btn',
       attr: { 'aria-label': server.enabled ? 'Disable' : 'Enable' },
     });
     setIcon(toggleBtn, server.enabled ? 'toggle-right' : 'toggle-left');
     toggleBtn.addEventListener('click', () => this.toggleServer(server));
 
     const editBtn = actionsEl.createEl('button', {
-      cls: 'claudian-mcp-action-btn',
+      cls: 'chimera-mcp-action-btn',
       attr: { 'aria-label': 'Edit' },
     });
     setIcon(editBtn, 'pencil');
     editBtn.addEventListener('click', () => this.openModal(server));
 
     const deleteBtn = actionsEl.createEl('button', {
-      cls: 'claudian-mcp-action-btn claudian-mcp-delete-btn',
+      cls: 'chimera-mcp-action-btn chimera-mcp-delete-btn',
       attr: { 'aria-label': 'Delete' },
     });
     setIcon(deleteBtn, 'trash-2');

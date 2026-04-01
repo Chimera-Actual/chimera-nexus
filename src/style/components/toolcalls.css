@@ -1,8 +1,8 @@
-.claudian-tool-call {
+.chimera-tool-call {
   margin: 8px 0;
 }
 
-.claudian-tool-header {
+.chimera-tool-header {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -11,23 +11,23 @@
   overflow: hidden;
 }
 
-.claudian-tool-header:hover {
+.chimera-tool-header:hover {
   opacity: 0.85;
 }
 
-.claudian-tool-icon {
+.chimera-tool-icon {
   display: flex;
   align-items: center;
   color: var(--text-accent);
   flex-shrink: 0;
 }
 
-.claudian-tool-icon svg {
+.chimera-tool-icon svg {
   width: 16px;
   height: 16px;
 }
 
-.claudian-tool-name {
+.chimera-tool-name {
   font-family: var(--font-monospace);
   font-size: 13px;
   font-weight: 400;
@@ -36,7 +36,7 @@
   flex-shrink: 0;
 }
 
-.claudian-tool-summary {
+.chimera-tool-summary {
   font-family: var(--font-monospace);
   font-size: 13px;
   color: var(--text-muted);
@@ -47,12 +47,12 @@
   min-width: 0;
 }
 
-.claudian-tool-summary:empty {
+.chimera-tool-summary:empty {
   display: none;
 }
 
-/* Legacy: StatusPanel bash entries still use claudian-tool-label */
-.claudian-tool-label {
+/* Legacy: StatusPanel bash entries still use chimera-tool-label */
+.chimera-tool-label {
   font-family: var(--font-monospace);
   font-size: 13px;
   font-weight: 400;
@@ -62,47 +62,47 @@
   text-overflow: ellipsis;
 }
 
-.claudian-tool-current {
+.chimera-tool-current {
   font-family: var(--font-monospace);
   font-size: 13px;
   color: var(--text-muted);
   white-space: nowrap;
 }
 
-.claudian-tool-current:empty {
+.chimera-tool-current:empty {
   display: none;
 }
 
-.claudian-tool-status {
+.chimera-tool-status {
   display: flex;
   align-items: center;
   flex-shrink: 0;
   margin-left: auto;
 }
 
-.claudian-tool-status svg {
+.chimera-tool-status svg {
   width: 14px;
   height: 14px;
 }
 
-.claudian-tool-status.status-running {
+.chimera-tool-status.status-running {
   color: var(--text-accent);
 }
 
-.claudian-tool-status.status-completed {
+.chimera-tool-status.status-completed {
   color: var(--color-green);
 }
 
-.claudian-tool-status.status-error {
+.chimera-tool-status.status-error {
   color: var(--color-red);
 }
 
-.claudian-tool-status.status-blocked {
+.chimera-tool-status.status-blocked {
   color: var(--color-orange);
 }
 
 /* Tool call content - border style (like thinking block) */
-.claudian-tool-content {
+.chimera-tool-content {
   padding: 4px 0;
   padding-inline-start: 16px;
   margin-inline-start: 7px;
@@ -110,34 +110,34 @@
 }
 
 /* Tool content variants that render inline widgets instead of bordered results */
-.claudian-tool-content-todo,
-.claudian-tool-content-ask {
+.chimera-tool-content-todo,
+.chimera-tool-content-ask {
   border-inline-start: none;
   margin-inline-start: 0;
   padding-inline-start: 0;
 }
 
 /* Expanded content: per-line rendering */
-.claudian-tool-lines {
+.chimera-tool-lines {
   font-family: var(--font-monospace);
   font-size: 12px;
   line-height: 1.4;
   overflow-x: auto;
 }
 
-.claudian-tool-line {
+.chimera-tool-line {
   padding: 1px 0;
   color: var(--text-muted);
   white-space: pre;
 }
 
 /* Hover highlight for file search results */
-.claudian-tool-line.hoverable:hover {
+.chimera-tool-line.hoverable:hover {
   background: var(--background-modifier-hover);
 }
 
 /* Truncation indicator: "... N more lines" */
-.claudian-tool-truncated {
+.chimera-tool-truncated {
   color: var(--text-faint);
   font-style: italic;
   padding: 4px 0;
@@ -146,7 +146,7 @@
 }
 
 /* ToolSearch expanded: icon + tool name rows */
-.claudian-tool-search-item {
+.chimera-tool-search-item {
   display: flex;
   align-items: center;
   gap: 4px;
@@ -156,7 +156,7 @@
   color: var(--text-muted);
 }
 
-.claudian-tool-search-icon {
+.chimera-tool-search-icon {
   display: flex;
   align-items: center;
   flex-shrink: 0;
@@ -165,13 +165,13 @@
   color: var(--text-faint);
 }
 
-.claudian-tool-search-icon svg {
+.chimera-tool-search-icon svg {
   width: 14px;
   height: 14px;
 }
 
 /* Web search links */
-.claudian-tool-link {
+.chimera-tool-link {
   display: flex;
   align-items: flex-start;
   gap: 6px;
@@ -184,11 +184,11 @@
   line-height: 1.4;
 }
 
-.claudian-tool-link:hover {
+.chimera-tool-link:hover {
   color: var(--text-accent);
 }
 
-.claudian-tool-link-icon {
+.chimera-tool-link-icon {
   flex-shrink: 0;
   width: 12px;
   height: 12px;
@@ -196,19 +196,19 @@
   color: var(--text-faint);
 }
 
-.claudian-tool-link-icon svg {
+.chimera-tool-link-icon svg {
   width: 12px;
   height: 12px;
 }
 
-.claudian-tool-link-title {
+.chimera-tool-link-title {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 /* Web search summary section */
-.claudian-tool-web-summary {
+.chimera-tool-web-summary {
   font-family: var(--font-monospace);
   font-size: 12px;
   color: var(--text-muted);
@@ -222,7 +222,7 @@
 }
 
 /* Empty state for file search */
-.claudian-tool-empty {
+.chimera-tool-empty {
   color: var(--text-faint);
   font-style: italic;
   font-family: var(--font-monospace);
@@ -230,12 +230,12 @@
   padding: 4px 0;
 }
 
-.claudian-tool-result-row {
+.chimera-tool-result-row {
   display: flex;
   align-items: flex-start;
 }
 
-.claudian-tool-result-text {
+.chimera-tool-result-text {
   font-family: var(--font-monospace);
   font-size: 12px;
   color: var(--text-muted);
@@ -245,12 +245,12 @@
   flex: 1;
 }
 
-.claudian-tool-result-item {
+.chimera-tool-result-item {
   display: block;
   margin-bottom: 2px;
 }
 
-.claudian-tool-result-item:last-child {
+.chimera-tool-result-item:last-child {
   margin-bottom: 0;
 }
 

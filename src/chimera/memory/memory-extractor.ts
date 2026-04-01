@@ -5,8 +5,10 @@
  * and patterns to the appropriate vault memory files.
  */
 
-import { Vault, normalizePath } from "obsidian";
-import { Session, ConversationMessage } from "../types";
+import type { Vault} from "obsidian";
+import { normalizePath } from "obsidian";
+
+import type { ConversationMessage,Session } from "../types";
 import { parseFrontmatter, stringifyFrontmatter } from "../utils/frontmatter";
 
 // ---------------------------------------------------------------------------

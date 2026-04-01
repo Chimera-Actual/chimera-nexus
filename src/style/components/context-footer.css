@@ -1,6 +1,6 @@
 /* Context usage meter (inline in toolbar) */
 
-.claudian-context-meter {
+.chimera-context-meter {
   position: relative;
   display: flex;
   align-items: center;
@@ -10,7 +10,7 @@
 }
 
 /* Custom tooltip */
-.claudian-context-meter::after {
+.chimera-context-meter::after {
   content: attr(data-tooltip);
   position: absolute;
   bottom: 100%;
@@ -31,12 +31,12 @@
   z-index: 100;
 }
 
-.claudian-context-meter:hover::after {
+.chimera-context-meter:hover::after {
   opacity: 1;
   visibility: visible;
 }
 
-.claudian-context-meter-gauge {
+.chimera-context-meter-gauge {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -44,33 +44,33 @@
   height: 24px;
 }
 
-.claudian-context-meter-gauge svg {
+.chimera-context-meter-gauge svg {
   width: 16px;
   height: 16px;
 }
 
-.claudian-meter-bg {
+.chimera-meter-bg {
   stroke: var(--background-modifier-border);
 }
 
-.claudian-meter-fill {
-  stroke: var(--claudian-brand);
+.chimera-meter-fill {
+  stroke: var(--chimera-brand);
   transition: stroke-dashoffset 0.3s ease, stroke 0.3s ease;
 }
 
-.claudian-context-meter-percent {
+.chimera-context-meter-percent {
   font-size: 11px;
-  color: var(--claudian-brand);
+  color: var(--chimera-brand);
   min-width: 24px;
   text-align: end;
   transition: color 0.3s ease;
 }
 
 /* Warning state (> 80%) - pale red */
-.claudian-context-meter.warning .claudian-meter-fill {
+.chimera-context-meter.warning .chimera-meter-fill {
   stroke: #E57373;
 }
 
-.claudian-context-meter.warning .claudian-context-meter-percent {
+.chimera-context-meter.warning .chimera-context-meter-percent {
   color: #E57373;
 }

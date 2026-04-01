@@ -1,8 +1,8 @@
 /* Brand & semantic color tokens */
-.claudian-container {
-  --claudian-brand: #D97757;
-  --claudian-brand-rgb: 217, 119, 87;
-  --claudian-error: #dc3545;
-  --claudian-error-rgb: 220, 53, 69;
-  --claudian-compact: #5bc0de;
+.chimera-container {
+  --chimera-brand: #D97757;
+  --chimera-brand-rgb: 217, 119, 87;
+  --chimera-error: #dc3545;
+  --chimera-error-rgb: 220, 53, 69;
+  --chimera-compact: #5bc0de;
 }

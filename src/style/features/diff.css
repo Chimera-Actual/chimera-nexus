@@ -1,19 +1,19 @@
 /* Write/Edit Diff Block - Subagent style */
-.claudian-write-edit-block {
+.chimera-write-edit-block {
   margin: 4px 0;
   background: transparent;
   overflow: hidden;
 }
 
-.claudian-text-block+.claudian-write-edit-block {
+.chimera-text-block+.chimera-write-edit-block {
   margin-top: 8px;
 }
 
-.claudian-write-edit-block+.claudian-text-block {
+.chimera-write-edit-block+.chimera-text-block {
   margin-top: 8px;
 }
 
-.claudian-write-edit-header {
+.chimera-write-edit-header {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -24,20 +24,20 @@
   overflow: hidden;
 }
 
-.claudian-write-edit-icon {
+.chimera-write-edit-icon {
   width: 16px;
   height: 16px;
   color: var(--text-accent);
   flex-shrink: 0;
 }
 
-.claudian-write-edit-icon svg {
+.chimera-write-edit-icon svg {
   width: 16px;
   height: 16px;
 }
 
 /* Two-part header: name (fixed) + summary (flexible) */
-.claudian-write-edit-name {
+.chimera-write-edit-name {
   font-family: var(--font-monospace);
   font-size: 13px;
   font-weight: 400;
@@ -46,7 +46,7 @@
   flex-shrink: 0;
 }
 
-.claudian-write-edit-summary {
+.chimera-write-edit-summary {
   font-family: var(--font-monospace);
   font-size: 13px;
   color: var(--text-muted);
@@ -57,57 +57,57 @@
   min-width: 0;
 }
 
-.claudian-write-edit-stats {
+.chimera-write-edit-stats {
   font-family: var(--font-monospace);
   font-size: 11px;
   flex-shrink: 0;
 }
 
-.claudian-write-edit-stats .added {
+.chimera-write-edit-stats .added {
   color: var(--color-green);
 }
 
-.claudian-write-edit-stats .removed {
+.chimera-write-edit-stats .removed {
   color: var(--color-red);
   margin-left: 4px;
 }
 
-.claudian-write-edit-status {
+.chimera-write-edit-status {
   width: 16px;
   height: 16px;
   flex-shrink: 0;
 }
 
 /* Hide empty status on successful completion so stats align to right edge */
-.claudian-write-edit-block.done .claudian-write-edit-status:empty {
+.chimera-write-edit-block.done .chimera-write-edit-status:empty {
   display: none;
 }
 
-.claudian-write-edit-status svg {
+.chimera-write-edit-status svg {
   width: 16px;
   height: 16px;
 }
 
-.claudian-write-edit-status.status-completed {
+.chimera-write-edit-status.status-completed {
   color: var(--color-green);
 }
 
-.claudian-write-edit-status.status-error,
-.claudian-write-edit-status.status-blocked {
+.chimera-write-edit-status.status-error,
+.chimera-write-edit-status.status-blocked {
   color: var(--color-red);
 }
 
-.claudian-write-edit-content {
+.chimera-write-edit-content {
   padding: 0;
   background: transparent;
   overflow: hidden;
 }
 
-.claudian-write-edit-diff-row {
+.chimera-write-edit-diff-row {
   display: flex;
 }
 
-.claudian-write-edit-diff {
+.chimera-write-edit-diff {
   flex: 1;
   font-family: var(--font-monospace);
   font-size: 12px;
@@ -118,31 +118,31 @@
   overflow-x: auto;
 }
 
-.claudian-write-edit-loading,
-.claudian-write-edit-binary,
-.claudian-write-edit-error,
-.claudian-write-edit-done-text {
+.chimera-write-edit-loading,
+.chimera-write-edit-binary,
+.chimera-write-edit-error,
+.chimera-write-edit-done-text {
   font-family: var(--font-monospace);
   font-size: 12px;
   color: var(--text-muted);
 }
 
-.claudian-write-edit-error {
+.chimera-write-edit-error {
   color: var(--color-red);
 }
 
 /* Diff line styling */
-.claudian-diff-hunk {
+.chimera-diff-hunk {
   margin-bottom: 4px;
 }
 
-.claudian-diff-line {
+.chimera-diff-line {
   display: flex;
   white-space: pre-wrap;
   word-break: break-all;
 }
 
-.claudian-diff-prefix {
+.chimera-diff-prefix {
   flex-shrink: 0;
   width: 16px;
   text-align: center;
@@ -150,36 +150,36 @@
   user-select: none;
 }
 
-.claudian-diff-text {
+.chimera-diff-text {
   flex: 1;
   min-width: 0;
 }
 
 /* Diff colors - NO strikethrough for Write/Edit blocks */
-.claudian-diff-equal {
+.chimera-diff-equal {
   color: var(--text-muted);
 }
 
-.claudian-diff-delete {
+.chimera-diff-delete {
   background: rgba(255, 80, 80, 0.25);
   color: var(--text-normal);
 }
 
-.claudian-diff-delete .claudian-diff-prefix {
+.chimera-diff-delete .chimera-diff-prefix {
   color: var(--color-red);
 }
 
-.claudian-diff-insert {
+.chimera-diff-insert {
   background: rgba(80, 200, 80, 0.25);
   color: var(--text-normal);
 }
 
-.claudian-diff-insert .claudian-diff-prefix {
+.chimera-diff-insert .chimera-diff-prefix {
   color: var(--color-green);
 }
 
 /* Hunk separator */
-.claudian-diff-separator {
+.chimera-diff-separator {
   color: var(--text-muted);
   text-align: center;
   padding: 4px 0;
@@ -190,7 +190,7 @@
   font-size: 11px;
 }
 
-.claudian-diff-no-changes {
+.chimera-diff-no-changes {
   color: var(--text-muted);
   font-style: italic;
   padding: 8px;

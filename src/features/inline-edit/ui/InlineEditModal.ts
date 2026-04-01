@@ -56,20 +56,20 @@ class DiffWidget extends WidgetType {
   }
   toDOM(): HTMLElement {
     const span = document.createElement('span');
-    span.className = 'claudian-inline-diff-replace';
+    span.className = 'chimera-inline-diff-replace';
     span.innerHTML = this.diffHtml;
 
     const btns = document.createElement('span');
-    btns.className = 'claudian-inline-diff-buttons';
+    btns.className = 'chimera-inline-diff-buttons';
 
     const rejectBtn = document.createElement('button');
-    rejectBtn.className = 'claudian-inline-diff-btn reject';
+    rejectBtn.className = 'chimera-inline-diff-btn reject';
     rejectBtn.textContent = '✕';
     rejectBtn.title = 'Reject (Esc)';
     rejectBtn.onclick = () => this.controller.reject();
 
     const acceptBtn = document.createElement('button');
-    acceptBtn.className = 'claudian-inline-diff-btn accept';
+    acceptBtn.className = 'chimera-inline-diff-btn accept';
     acceptBtn.textContent = '✓';
     acceptBtn.title = 'Accept (Enter)';
     acceptBtn.onclick = () => this.controller.accept();
@@ -190,8 +190,8 @@ function diffToHtml(ops: DiffOp[]): string {
   return ops.map(op => {
     const escaped = escapeHtml(op.text);
     switch (op.type) {
-      case 'delete': return `<span class="claudian-diff-del">${escaped}</span>`;
-      case 'insert': return `<span class="claudian-diff-ins">${escaped}</span>`;
+      case 'delete': return `<span class="chimera-diff-del">${escaped}</span>`;
+      case 'insert': return `<span class="chimera-diff-ins">${escaped}</span>`;
       default: return escaped;
     }
   }).join('');
@@ -391,27 +391,27 @@ class InlineEditController {
 
   createInputDOM(): HTMLElement {
     const container = document.createElement('div');
-    container.className = 'claudian-inline-input-container';
+    container.className = 'chimera-inline-input-container';
     this.containerEl = container;
 
     this.agentReplyEl = document.createElement('div');
-    this.agentReplyEl.className = 'claudian-inline-agent-reply';
+    this.agentReplyEl.className = 'chimera-inline-agent-reply';
     this.agentReplyEl.style.display = 'none';
     container.appendChild(this.agentReplyEl);
 
     const inputWrap = document.createElement('div');
-    inputWrap.className = 'claudian-inline-input-wrap';
+    inputWrap.className = 'chimera-inline-input-wrap';
     container.appendChild(inputWrap);
 
     this.inputEl = document.createElement('input');
     this.inputEl.type = 'text';
-    this.inputEl.className = 'claudian-inline-input';
+    this.inputEl.className = 'chimera-inline-input';
     this.inputEl.placeholder = this.mode === 'cursor' ? 'Insert instructions...' : 'Edit instructions...';
     this.inputEl.spellcheck = false;
     inputWrap.appendChild(this.inputEl);
 
     this.spinnerEl = document.createElement('div');
-    this.spinnerEl.className = 'claudian-inline-spinner';
+    this.spinnerEl.className = 'chimera-inline-spinner';
     this.spinnerEl.style.display = 'none';
     inputWrap.appendChild(this.spinnerEl);
 
@@ -564,7 +564,7 @@ class InlineEditController {
     this.insertedText = trimmedText;
 
     const escaped = escapeHtml(trimmedText);
-    const diffHtml = `<span class="claudian-diff-ins">${escaped}</span>`;
+    const diffHtml = `<span class="chimera-diff-ins">${escaped}</span>`;
 
     this.editorView.dispatch({
       effects: showInsertion.of({

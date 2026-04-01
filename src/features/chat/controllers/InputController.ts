@@ -287,7 +287,7 @@ export class InputController {
     };
     state.addMessage(assistantMsg);
     const msgEl = renderer.addMessage(assistantMsg);
-    const contentEl = msgEl.querySelector('.claudian-message-content') as HTMLElement;
+    const contentEl = msgEl.querySelector('.chimera-message-content') as HTMLElement;
 
     state.toolCallElements.clear();
     state.currentContentEl = contentEl;
@@ -296,7 +296,7 @@ export class InputController {
 
     streamController.showThinkingIndicator(
       isCompact ? 'Compacting...' : undefined,
-      isCompact ? 'claudian-thinking--compact' : undefined,
+      isCompact ? 'chimera-thinking--compact' : undefined,
     );
     state.responseStartTime = performance.now();
 
@@ -399,7 +399,7 @@ export class InputController {
       if (!wasInvalidated && state.streamGeneration === streamGeneration) {
         const didCancelThisTurn = wasInterrupted || state.cancelRequested;
         if (didCancelThisTurn && !state.pendingNewSessionPlan) {
-          await streamController.appendText('\n\n<span class="claudian-interrupted">Interrupted</span> <span class="claudian-interrupted-hint">· What should Claudian do instead?</span>');
+          await streamController.appendText('\n\n<span class="chimera-interrupted">Interrupted</span> <span class="chimera-interrupted-hint">· What should Claudian do instead?</span>');
         }
         streamController.hideThinkingIndicator();
         state.isStreaming = false;
@@ -418,10 +418,10 @@ export class InputController {
             assistantMsg.durationFlavorWord = flavorWord;
             // Add footer to live message in DOM
             if (contentEl) {
-              const footerEl = contentEl.createDiv({ cls: 'claudian-response-footer' });
+              const footerEl = contentEl.createDiv({ cls: 'chimera-response-footer' });
               footerEl.createSpan({
                 text: `* ${flavorWord} for ${formatDurationMmSs(durationSeconds)}`,
-                cls: 'claudian-baked-duration',
+                cls: 'chimera-baked-duration',
               });
             }
           }
@@ -773,26 +773,26 @@ export class InputController {
     }
 
     // Build header element, then detach — InlineAskUserQuestion will re-attach it
-    const headerEl = parentEl.createDiv({ cls: 'claudian-ask-approval-info' });
+    const headerEl = parentEl.createDiv({ cls: 'chimera-ask-approval-info' });
     headerEl.remove();
 
-    const toolEl = headerEl.createDiv({ cls: 'claudian-ask-approval-tool' });
-    const iconEl = toolEl.createSpan({ cls: 'claudian-ask-approval-icon' });
+    const toolEl = headerEl.createDiv({ cls: 'chimera-ask-approval-tool' });
+    const iconEl = toolEl.createSpan({ cls: 'chimera-ask-approval-icon' });
     iconEl.setAttribute('aria-hidden', 'true');
     setToolIcon(iconEl, toolName);
-    toolEl.createSpan({ text: toolName, cls: 'claudian-ask-approval-tool-name' });
+    toolEl.createSpan({ text: toolName, cls: 'chimera-ask-approval-tool-name' });
 
     if (approvalOptions?.decisionReason) {
-      headerEl.createDiv({ text: approvalOptions.decisionReason, cls: 'claudian-ask-approval-reason' });
+      headerEl.createDiv({ text: approvalOptions.decisionReason, cls: 'chimera-ask-approval-reason' });
     }
     if (approvalOptions?.blockedPath) {
-      headerEl.createDiv({ text: approvalOptions.blockedPath, cls: 'claudian-ask-approval-blocked-path' });
+      headerEl.createDiv({ text: approvalOptions.blockedPath, cls: 'chimera-ask-approval-blocked-path' });
     }
     if (approvalOptions?.agentID) {
-      headerEl.createDiv({ text: `Agent: ${approvalOptions.agentID}`, cls: 'claudian-ask-approval-agent' });
+      headerEl.createDiv({ text: `Agent: ${approvalOptions.agentID}`, cls: 'chimera-ask-approval-agent' });
     }
 
-    headerEl.createDiv({ text: description, cls: 'claudian-ask-approval-desc' });
+    headerEl.createDiv({ text: description, cls: 'chimera-ask-approval-desc' });
 
     // Always include "Always allow" — SDK callback has no toggle
     const questionOptions = Object.keys(APPROVAL_OPTION_MAP);
