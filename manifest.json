@@ -1,7 +1,7 @@
 {
   "id": "chimera-nexus",
   "name": "Chimera Nexus",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "minAppVersion": "1.8.9",
   "description": "Vault-native agentic platform for Obsidian",
   "author": "Chimera Actual",
