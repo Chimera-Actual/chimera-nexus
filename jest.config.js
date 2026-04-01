@@ -30,6 +30,11 @@ module.exports = {
       displayName: 'integration',
       testMatch: ['<rootDir>/tests/integration/**/*.test.ts'],
     },
+    {
+      ...baseConfig,
+      displayName: 'chimera',
+      testMatch: ['<rootDir>/tests/chimera/**/*.test.ts'],
+    },
   ],
   collectCoverageFrom: [
     'src/**/*.ts',

@@ -170,6 +170,14 @@ export const MarkdownRenderer = {
   renderMarkdown: jest.fn().mockResolvedValue(undefined),
 };
 
+/**
+ * Normalizes a vault-relative path (replaces backslashes, collapses double slashes).
+ * Mirrors the Obsidian API's normalizePath behaviour.
+ */
+export function normalizePath(path: string): string {
+  return path.replace(/\\/g, "/").replace(/\/+/g, "/").replace(/^\//, "");
+}
+
 export const setIcon = jest.fn();
 
 // Notice mock that tracks constructor calls
