@@ -75,7 +75,8 @@ export class ChimeraSettingsTab extends PluginSettingTab {
         testBtn.textContent = "Testing...";
         testBtn.setAttribute("disabled", "true");
         try {
-          const { exec } = require("child_process") as typeof import("child_process");
+          const childProcess = await import("child_process");
+          const exec = childProcess.exec;
           await new Promise<void>((resolve, reject) => {
             exec(
               `${settings.cliPath || "claude"} --version`,
