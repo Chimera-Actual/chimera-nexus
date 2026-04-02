@@ -388,17 +388,12 @@ export class SlashCommandRegistry {
     });
     this.register({
       name: "plugin",
-      description: "Manage Claude Code plugins",
-      execute: async (_args, context) => {
-        const { PluginLoader } = await import("../core/claude-compat/plugin-loader");
-        const loader = new PluginLoader(context.vault);
-        try {
-          const plugins = await loader.loadPlugins();
-          if (plugins.length === 0) return "No plugins found in .claude/plugins/";
-          return ["Installed plugins:", ...plugins.map(p => `  ${p.name} - ${p.description}`)].join("\n");
-        } catch {
-          return "Failed to load plugins.";
-        }
+      description: "Manage CC-compatible plugins",
+      argumentHint: "[install|uninstall|enable|disable|update|discover|validate|marketplace]",
+      execute: async (args, context) => {
+        const { PluginCommandHandler } = await import("./plugin-command");
+        const handler = new PluginCommandHandler(context.vault);
+        return handler.execute(args, context);
       },
     });
     this.register({
@@ -586,7 +581,7 @@ export class SlashCommandRegistry {
           "Agents & Tools:",
           "  /agents - List available agents",
           "  /skills - List available skills",
-          "  /plugin - Manage plugins",
+          "  /plugin - Manage plugins (install/update/discover/marketplace)",
           "  /mcp - Manage MCP servers",
           "  /permissions - View tool permissions",
           "  /hooks - View hook configurations",

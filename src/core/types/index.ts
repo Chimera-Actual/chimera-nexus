@@ -658,6 +658,8 @@ export interface ChimeraSettings {
   effortLevel: string;
   /** When true, disables file editing tools for Q&A-only conversations. */
   conversationalMode: boolean;
+  /** Configured marketplace sources (name -> owner/repo). */
+  marketplaces: Record<string, string>;
 }
 
 /**
@@ -679,6 +681,9 @@ export const DEFAULT_SETTINGS: ChimeraSettings = {
   model: "sonnet",
   effortLevel: "high",
   conversationalMode: false,
+  marketplaces: {
+    "chimera-official": "Chimera-Actual/chimera-marketplace",
+  },
 };
 
 // ---------------------------------------------------------------------------

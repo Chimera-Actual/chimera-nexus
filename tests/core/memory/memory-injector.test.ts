@@ -55,6 +55,7 @@ function makeSettings(overrides: Partial<ChimeraSettings> = {}): ChimeraSettings
     model: "sonnet",
     effortLevel: "high",
     conversationalMode: false,
+    marketplaces: { "chimera-official": "Chimera-Actual/chimera-marketplace" },
     ...overrides,
   };
 }
