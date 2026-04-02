@@ -123,6 +123,24 @@ export function renderChimeraSettings(containerEl: HTMLElement, plugin: any): vo
         });
     });
 
+  // Remote Access section
+  new Setting(containerEl).setName("Remote Access").setHeading();
+
+  containerEl.createEl("p", {
+    cls: "setting-item-description",
+    text: "Access your Chimera Nexus sessions from other devices.",
+  });
+
+  new Setting(containerEl)
+    .setName("Enable Remote Control")
+    .setDesc("Make sessions available on claude.ai and the Claude mobile app. Requires Claude Max subscription.")
+    .addToggle((toggle: any) =>
+      toggle.setValue(plugin.settings.enableRemoteControl ?? false).onChange(async (value: boolean) => {
+        plugin.settings.enableRemoteControl = value;
+        await plugin.saveSettings();
+      })
+    );
+
   const vaultPath = (plugin.app.vault.adapter as any).basePath || "";
   renderSkillMarketplace(containerEl, vaultPath);
 }

@@ -20,6 +20,10 @@
   color: var(--text-muted);
 }
 
+.chimera-permission-btn.mode-auto {
+  color: var(--color-green, #4caf50);
+}
+
 .chimera-permission-btn.mode-plan {
   color: rgb(92, 148, 140);
 }

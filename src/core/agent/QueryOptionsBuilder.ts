@@ -332,18 +332,23 @@ export class QueryOptionsBuilder {
       options.canUseTool = canUseTool;
     }
 
-    if (permissionMode === 'yolo') {
-      options.permissionMode = 'bypassPermissions';
-    } else if (permissionMode === 'plan') {
-      options.permissionMode = 'plan';
-    } else {
-      options.permissionMode = 'acceptEdits';
-    }
+    // Map Chimera permission modes to SDK permission modes
+    const modeMap: Record<PermissionMode, NonNullable<Options['permissionMode']>> = {
+      normal: 'default',
+      acceptEdits: 'acceptEdits',
+      plan: 'plan',
+      yolo: 'bypassPermissions',
+    };
+    options.permissionMode = modeMap[permissionMode] ?? 'default';
   }
 
   private static applyExtraArgs(options: Options, settings: ClaudianSettings): void {
     if (settings.enableChrome) {
       options.extraArgs = { ...options.extraArgs, chrome: null };
+    }
+    // CHIMERA PATCH: remote control support
+    if (settings.enableRemoteControl) {
+      options.extraArgs = { ...options.extraArgs, 'remote-control': null };
     }
   }
 

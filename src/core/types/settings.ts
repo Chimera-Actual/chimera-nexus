@@ -118,7 +118,7 @@ export function getCliPlatformKey(): CliPlatformKey {
 export type HostnameCliPaths = Record<string, string>;
 
 /** Permission mode for tool execution. */
-export type PermissionMode = 'yolo' | 'plan' | 'normal';
+export type PermissionMode = 'normal' | 'acceptEdits' | 'plan' | 'yolo';
 
 /** User decision from the approval modal. */
 export type ApprovalDecision = 'allow' | 'allow-always' | 'deny' | 'cancel';
@@ -250,6 +250,7 @@ export interface ClaudianSettings {
   enableAutoTitleGeneration: boolean;
   titleGenerationModel: string;  // Model for auto title generation (empty = auto)
   enableChrome: boolean;  // Enable Chrome extension support (passes --chrome flag)
+  enableRemoteControl: boolean;  // Make sessions accessible from claude.ai and mobile
   enableBangBash: boolean;  // Enable ! bash mode for direct command execution
   enableOpus1M: boolean;  // Show Opus 1M model variant (opus[1m])
   enableSonnet1M: boolean;  // Show Sonnet 1M model variant (sonnet[1m])
@@ -310,7 +311,7 @@ export const DEFAULT_SETTINGS: ClaudianSettings = {
   enableBlocklist: true,
   allowExternalAccess: false,
   blockedCommands: getDefaultBlockedCommands(),
-  permissionMode: 'yolo',
+  permissionMode: 'normal',
 
   // Model & thinking
   model: 'haiku',
@@ -319,6 +320,7 @@ export const DEFAULT_SETTINGS: ClaudianSettings = {
   enableAutoTitleGeneration: true,
   titleGenerationModel: '',  // Empty = auto (ANTHROPIC_DEFAULT_HAIKU_MODEL or claude-haiku-4-5)
   enableChrome: false,  // Disabled by default
+  enableRemoteControl: false,  // Disabled by default
   enableBangBash: false,  // Disabled by default
   enableOpus1M: false,  // Disabled by default
   enableSonnet1M: false,  // Disabled by default

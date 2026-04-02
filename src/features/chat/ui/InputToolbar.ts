@@ -264,6 +264,7 @@ export class PermissionToggle {
     const mode = this.callbacks.getSettings().permissionMode;
     const labels: Record<string, string> = {
       normal: 'Ask',
+      acceptEdits: 'Auto-edit',
       plan: 'Plan',
       yolo: 'Bypass',
     };
@@ -271,6 +272,7 @@ export class PermissionToggle {
     this.btnEl.className = 'chimera-permission-btn';
     if (mode === 'yolo') this.btnEl.addClass('mode-bypass');
     else if (mode === 'plan') this.btnEl.addClass('mode-plan');
+    else if (mode === 'acceptEdits') this.btnEl.addClass('mode-auto');
     else this.btnEl.addClass('mode-ask');
   }
 
@@ -286,6 +288,12 @@ export class PermissionToggle {
         icon: 'hand',
         title: 'Ask before edits',
         desc: 'Claude will ask for approval before making each edit',
+      },
+      {
+        value: 'acceptEdits',
+        icon: 'code',
+        title: 'Edit automatically',
+        desc: 'Claude will edit your selected text or the whole file',
       },
       {
         value: 'plan',
