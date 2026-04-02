@@ -14,7 +14,8 @@
 
 /* outline + offset only */
 .chimera-action-btn:focus-visible,
-.chimera-toggle-switch:focus-visible,
+.chimera-permission-btn:focus-visible,
+.chimera-permission-option:focus-visible,
 .chimera-file-chip:focus-visible,
 .chimera-image-chip:focus-visible,
 .chimera-file-chip-remove:focus-visible,

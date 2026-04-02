@@ -237,54 +237,92 @@ export class ThinkingBudgetSelector {
 
 export class PermissionToggle {
   private container: HTMLElement;
-  private toggleEl: HTMLElement | null = null;
-  private labelEl: HTMLElement | null = null;
+  private btnEl: HTMLElement | null = null;
+  private dropdownEl: HTMLElement | null = null;
   private callbacks: ToolbarCallbacks;
 
   constructor(parentEl: HTMLElement, callbacks: ToolbarCallbacks) {
     this.callbacks = callbacks;
-    this.container = parentEl.createDiv({ cls: 'chimera-permission-toggle' });
+    this.container = parentEl.createDiv({ cls: 'chimera-permission-selector' });
     this.render();
   }
 
   private render() {
     this.container.empty();
 
-    this.labelEl = this.container.createSpan({ cls: 'chimera-permission-label' });
-    this.toggleEl = this.container.createDiv({ cls: 'chimera-toggle-switch' });
-
+    // Current mode button (visible in toolbar)
+    this.btnEl = this.container.createDiv({ cls: 'chimera-permission-btn' });
     this.updateDisplay();
 
-    this.toggleEl.addEventListener('click', () => this.toggle());
+    // Dropdown popup (hidden, shows on hover)
+    this.dropdownEl = this.container.createDiv({ cls: 'chimera-permission-dropdown' });
+    this.buildOptions();
   }
 
   updateDisplay() {
-    if (!this.toggleEl || !this.labelEl) return;
-
+    if (!this.btnEl) return;
     const mode = this.callbacks.getSettings().permissionMode;
-
-    if (mode === 'plan') {
-      this.toggleEl.style.display = 'none';
-      this.labelEl.setText('PLAN');
-      this.labelEl.addClass('plan-active');
-    } else {
-      this.toggleEl.style.display = '';
-      this.labelEl.removeClass('plan-active');
-      if (mode === 'yolo') {
-        this.toggleEl.addClass('active');
-        this.labelEl.setText('YOLO');
-      } else {
-        this.toggleEl.removeClass('active');
-        this.labelEl.setText('Safe');
-      }
-    }
+    const labels: Record<string, string> = {
+      normal: 'Ask',
+      plan: 'Plan',
+      yolo: 'Bypass',
+    };
+    this.btnEl.textContent = labels[mode] || 'Ask';
+    this.btnEl.className = 'chimera-permission-btn';
+    if (mode === 'yolo') this.btnEl.addClass('mode-bypass');
+    else if (mode === 'plan') this.btnEl.addClass('mode-plan');
+    else this.btnEl.addClass('mode-ask');
   }
 
-  private async toggle() {
-    const current = this.callbacks.getSettings().permissionMode;
-    const newMode: PermissionMode = current === 'yolo' ? 'normal' : 'yolo';
-    await this.callbacks.onPermissionModeChange(newMode);
-    this.updateDisplay();
+  private buildOptions() {
+    if (!this.dropdownEl) return;
+    this.dropdownEl.empty();
+
+    const currentMode = this.callbacks.getSettings().permissionMode;
+
+    const modes: Array<{ value: PermissionMode; icon: string; title: string; desc: string }> = [
+      {
+        value: 'normal',
+        icon: 'hand',
+        title: 'Ask before edits',
+        desc: 'Claude will ask for approval before making each edit',
+      },
+      {
+        value: 'plan',
+        icon: 'clipboard-list',
+        title: 'Plan mode',
+        desc: 'Claude will explore the code and present a plan before editing',
+      },
+      {
+        value: 'yolo',
+        icon: 'zap',
+        title: 'Bypass permissions',
+        desc: 'Claude will not ask for approval before running potentially dangerous commands',
+      },
+    ];
+
+    for (const mode of modes) {
+      const opt = this.dropdownEl.createDiv({ cls: 'chimera-permission-option' });
+      if (currentMode === mode.value) opt.addClass('selected');
+
+      const iconEl = opt.createSpan({ cls: 'chimera-permission-option-icon' });
+      setIcon(iconEl, mode.icon);
+
+      const textCol = opt.createDiv({ cls: 'chimera-permission-option-text' });
+      textCol.createDiv({ cls: 'chimera-permission-option-title', text: mode.title });
+      textCol.createDiv({ cls: 'chimera-permission-option-desc', text: mode.desc });
+
+      if (currentMode === mode.value) {
+        const checkEl = opt.createSpan({ cls: 'chimera-permission-option-check' });
+        setIcon(checkEl, 'check');
+      }
+
+      opt.addEventListener('click', async () => {
+        await this.callbacks.onPermissionModeChange(mode.value);
+        this.updateDisplay();
+        this.buildOptions();
+      });
+    }
   }
 }
 

@@ -1,56 +1,123 @@
-/* Permission Mode Toggle */
-.chimera-permission-toggle {
+/* Permission Mode Selector (Claude Code style popup) */
+.chimera-permission-selector {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 6px;
   margin-left: auto;
-  padding-left: 12px;
-  padding-right: 8px;
 }
 
-.chimera-permission-label {
-  font-size: 11px;
-  color: var(--text-muted);
-  min-width: 28px;
-}
-
-.chimera-permission-label.plan-active {
-  color: rgb(92, 148, 140);
-  font-weight: 600;
-}
-
-.chimera-toggle-switch {
-  width: 32px;
-  height: 18px;
-  border-radius: 9px;
-  background: var(--background-modifier-border);
+.chimera-permission-btn {
+  padding: 4px 8px;
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: 4px;
   cursor: pointer;
-  position: relative;
-  transition: background 0.2s ease;
-  flex-shrink: 0;
+  transition: color 0.15s ease;
+  white-space: nowrap;
 }
 
-.chimera-toggle-switch::after {
-  content: '';
+.chimera-permission-btn.mode-ask {
+  color: var(--text-muted);
+}
+
+.chimera-permission-btn.mode-plan {
+  color: rgb(92, 148, 140);
+}
+
+.chimera-permission-btn.mode-bypass {
+  color: var(--chimera-brand);
+}
+
+.chimera-permission-btn:hover {
+  opacity: 0.8;
+}
+
+.chimera-permission-dropdown {
   position: absolute;
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  background: var(--text-muted);
-  top: 2px;
-  left: 2px;
-  transition: transform 0.2s ease, background 0.2s ease;
+  bottom: 100%;
+  right: 0;
+  margin-bottom: 4px;
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 8px;
+  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+  width: 280px;
+  padding: 4px;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.15s ease, visibility 0.15s ease;
 }
 
-.chimera-toggle-switch:hover {
+.chimera-permission-selector:hover .chimera-permission-dropdown {
+  opacity: 1;
+  visibility: visible;
+}
+
+.chimera-permission-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.1s ease;
+}
+
+.chimera-permission-option:hover {
   background: var(--background-modifier-hover);
 }
 
-.chimera-toggle-switch.active {
-  background: rgba(var(--chimera-brand-rgb), 0.3);
+.chimera-permission-option.selected {
+  background: rgba(var(--chimera-brand-rgb, 217, 119, 87), 0.08);
 }
 
-.chimera-toggle-switch.active::after {
-  transform: translateX(14px);
-  background: var(--chimera-brand);
+.chimera-permission-option-icon {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: var(--text-muted);
+}
+
+.chimera-permission-option-icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.chimera-permission-option.selected .chimera-permission-option-icon {
+  color: var(--chimera-brand);
+}
+
+.chimera-permission-option-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.chimera-permission-option-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-normal);
+  line-height: 1.3;
+}
+
+.chimera-permission-option-desc {
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.4;
+  margin-top: 2px;
+}
+
+.chimera-permission-option-check {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  margin-top: 2px;
+  margin-left: auto;
+  color: var(--chimera-brand);
+}
+
+.chimera-permission-option-check svg {
+  width: 16px;
+  height: 16px;
 }
