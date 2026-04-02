@@ -9,7 +9,7 @@
  */
 
 import { spawn, ChildProcess } from "child_process";
-import { ChimeraSettings, AuthMethod } from "../types";
+import { ChimeraSettings, AuthMethod, PermissionMode } from "../types";
 
 // ---------------------------------------------------------------------------
 // Public interface
@@ -250,6 +250,12 @@ export class SdkWrapper {
 
       // Permission mode is already the CLI flag value
       args.push("--permission-mode", this.settings.permissionMode);
+
+      // Bypass mode requires the dangerously-skip-permissions flag to
+      // actually suppress all approval prompts in non-interactive mode.
+      if (this.settings.permissionMode === PermissionMode.BypassPermissions) {
+        args.push("--dangerously-skip-permissions");
+      }
 
       // Model
       if (this.settings.model) {
