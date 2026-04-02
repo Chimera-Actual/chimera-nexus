@@ -34,12 +34,36 @@ interface SkillRepo {
 
 const CURATED_SKILLS: SkillRepo[] = [
   {
+    name: "Anthropic Agent Skills",
+    author: "Anthropic",
+    description: "Official Anthropic skills: PDF, DOCX, PPTX, XLSX, frontend design, canvas art, MCP builder, and more",
+    repo: "anthropics/anthropic-agent-skills",
+    installCmd: "claude plugins:install anthropic-agent-skills",
+    skills: ["pdf", "docx", "pptx", "xlsx", "frontend-design", "canvas-design", "mcp-builder", "brand-guidelines", "skill-creator", "web-artifacts-builder"],
+  },
+  {
     name: "Obsidian Skills",
     author: "Steph Ango (kepano)",
     description: "Essential Obsidian skills: markdown syntax, bases, canvas, CLI, web scraping",
     repo: "kepano/obsidian-skills",
     installCmd: "npx obsidian-skills",
     skills: ["obsidian-markdown", "obsidian-bases", "json-canvas", "obsidian-cli", "defuddle"],
+  },
+  {
+    name: "Everything Claude Code",
+    author: "riyavsinha",
+    description: "Comprehensive skill pack: TDD, code review, architecture, security, E2E testing, documentation",
+    repo: "riyavsinha/everything-claude-code",
+    installCmd: "claude plugins:install everything-claude-code",
+    skills: ["tdd", "code-review", "architect", "security-review", "e2e", "build-error-resolver", "doc-updater"],
+  },
+  {
+    name: "Superpowers",
+    author: "Claude Plugins Official",
+    description: "Planning, brainstorming, subagent-driven development, git worktrees, debugging workflows",
+    repo: "anthropics/claude-code-plugins",
+    installCmd: "claude plugins:install superpowers",
+    skills: ["brainstorming", "writing-plans", "executing-plans", "subagent-driven-development", "systematic-debugging", "verification-before-completion"],
   },
 ];
 
