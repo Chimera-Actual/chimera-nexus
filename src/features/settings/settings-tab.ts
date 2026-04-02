@@ -7,8 +7,8 @@
  */
 
 import { exec } from "child_process";
-import { App, PluginSettingTab, Setting } from "obsidian";
-import { ChimeraSettings, AuthMethod, PermissionMode } from "../../core/types";
+import { App, Notice, PluginSettingTab, Setting, TFile, TFolder, normalizePath } from "obsidian";
+import { ChimeraSettings, AuthMethod, DEFAULT_SETTINGS, PermissionMode } from "../../core/types";
 
 /**
  * Minimal reference to the host plugin used to read and persist settings.
@@ -312,7 +312,25 @@ export class ChimeraSettingsTab extends PluginSettingTab {
       });
 
     // -----------------------------------------------------------------------
-    // Section 5: Advanced
+    // Section 5: Plugins
+    // -----------------------------------------------------------------------
+
+    new Setting(containerEl).setHeading().setName("Plugins");
+
+    containerEl.createEl("p", {
+      cls: "chimera-settings-section-desc",
+      text: "CC-compatible plugins are discovered from .claude/plugins/ in your vault. Use /plugin in chat to install, update, discover, and manage plugins.",
+    });
+
+    new Setting(containerEl)
+      .setName("Plugin management")
+      .setDesc(
+        "Use /plugin in chat to browse marketplaces, install plugins, and manage installed plugins. " +
+        "Installed plugins provide skills, agents, hooks, and MCP server configurations."
+      );
+
+    // -----------------------------------------------------------------------
+    // Section 6: Advanced
     // -----------------------------------------------------------------------
 
     new Setting(containerEl).setHeading().setName("Advanced");
@@ -356,5 +374,261 @@ export class ChimeraSettingsTab extends PluginSettingTab {
             await this.plugin.saveSettings();
           });
       });
+
+    // -----------------------------------------------------------------------
+    // Section 6: Export / Import
+    // -----------------------------------------------------------------------
+
+    new Setting(containerEl).setHeading().setName("Export / Import");
+
+    containerEl.createEl("p", {
+      cls: "chimera-settings-section-desc",
+      text:
+        "Export your full Chimera configuration -- plugin settings plus portable " +
+        ".claude/ files (agents, skills, commands, hooks, rules, memory, tasks). " +
+        "API keys and session history are excluded for security and privacy.",
+    });
+
+    new Setting(containerEl)
+      .setName("Export Configuration")
+      .setDesc(
+        "Download plugin settings and all portable .claude/ files as a single JSON file."
+      )
+      .addButton((btn) => {
+        btn.setButtonText("Export").onClick(async () => {
+          btn.setDisabled(true);
+          btn.setButtonText("Exporting...");
+          try {
+            await this.exportConfiguration();
+          } finally {
+            btn.setDisabled(false);
+            btn.setButtonText("Export");
+          }
+        });
+      });
+
+    new Setting(containerEl)
+      .setName("Import Configuration")
+      .setDesc(
+        "Load a previously exported JSON file. Plugin settings are merged (API key preserved). " +
+        "Existing .claude/ files are kept; only missing files are created."
+      )
+      .addButton((btn) => {
+        btn.setButtonText("Import").onClick(() => {
+          this.importConfiguration();
+        });
+      });
+  }
+
+  // -------------------------------------------------------------------------
+  // Export / Import helpers
+  // -------------------------------------------------------------------------
+
+  /**
+   * Directories inside `.claude/` that are portable across vaults. Everything
+   * else (sessions, task-logs, agent-memory, swarm-runs, backups, reflections)
+   * is personal or ephemeral and excluded from export.
+   */
+  private static readonly PORTABLE_DIRS = [
+    ".claude/settings.json",
+    ".claude/agents",
+    ".claude/skills",
+    ".claude/commands",
+    ".claude/hooks",
+    ".claude/plugins",
+    ".claude/rules",
+    ".claude/output-styles",
+    ".claude/memory/system",
+    ".claude/memory/knowledge",
+    ".claude/tasks",
+  ];
+
+  /**
+   * Recursively collects all files under `folderPath` in the vault.
+   */
+  private collectFiles(folderPath: string): TFile[] {
+    const result: TFile[] = [];
+    const folder = this.app.vault.getAbstractFileByPath(
+      normalizePath(folderPath)
+    );
+    if (!folder || !(folder instanceof TFolder)) return result;
+
+    const walk = (dir: TFolder): void => {
+      for (const child of dir.children) {
+        if (child instanceof TFile) {
+          result.push(child);
+        } else if (child instanceof TFolder) {
+          walk(child);
+        }
+      }
+    };
+    walk(folder);
+    return result;
+  }
+
+  /**
+   * Builds the export bundle and triggers a browser download.
+   */
+  private async exportConfiguration(): Promise<void> {
+    const settings: Record<string, unknown> = { ...this.plugin.settings };
+    delete settings.apiKey;
+
+    // Collect portable .claude/ files
+    const files: Record<string, string> = {};
+    for (const entry of ChimeraSettingsTab.PORTABLE_DIRS) {
+      const normalized = normalizePath(entry);
+      const abstract = this.app.vault.getAbstractFileByPath(normalized);
+
+      if (abstract instanceof TFile) {
+        // Single file (e.g. settings.json)
+        files[normalized] = await this.app.vault.read(abstract);
+      } else if (abstract instanceof TFolder) {
+        // Directory -- collect all files recursively
+        for (const f of this.collectFiles(normalized)) {
+          files[f.path] = await this.app.vault.read(f);
+        }
+      }
+      // If the path doesn't exist, just skip it
+    }
+
+    const bundle = {
+      _chimeraNexusExport: 2,
+      _exportedAt: new Date().toISOString(),
+      settings,
+      files,
+    };
+
+    const blob = new Blob([JSON.stringify(bundle, null, 2)], {
+      type: "application/json",
+    });
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "chimera-nexus-config.json";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    const fileCount = Object.keys(files).length;
+    new Notice(`Exported settings + ${fileCount} .claude/ files.`);
+  }
+
+  /**
+   * Opens a file picker, validates the bundle, merges settings, and writes
+   * any missing `.claude/` files into the vault.
+   */
+  private importConfiguration(): void {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = ".json";
+
+    input.addEventListener("change", async () => {
+      const file = input.files?.[0];
+      if (!file) return;
+
+      try {
+        const text = await file.text();
+        const bundle = JSON.parse(text) as Record<string, unknown>;
+
+        // Support both v1 (settings-only) and v2 (full config) exports
+        if (!bundle._chimeraNexusExport) {
+          new Notice("Invalid file: not a Chimera Nexus export.");
+          return;
+        }
+
+        // ------------------------------------------------------------------
+        // 1. Merge plugin settings
+        // ------------------------------------------------------------------
+        const importedSettings =
+          (bundle.settings as Record<string, unknown> | undefined) ?? {};
+
+        // v1 exports stored settings at the top level (no .settings key)
+        const settingsSource =
+          bundle._chimeraNexusExport === 2
+            ? importedSettings
+            : (() => {
+                const copy = { ...bundle };
+                delete copy._chimeraNexusExport;
+                delete copy._exportedAt;
+                delete copy.files;
+                return copy;
+              })();
+
+        const currentApiKey = this.plugin.settings.apiKey;
+        const merged = Object.assign(
+          {},
+          DEFAULT_SETTINGS,
+          settingsSource,
+          { apiKey: currentApiKey }
+        ) as ChimeraSettings;
+
+        Object.assign(this.plugin.settings, merged);
+        await this.plugin.saveSettings();
+
+        // ------------------------------------------------------------------
+        // 2. Write .claude/ files (skip existing)
+        // ------------------------------------------------------------------
+        const importedFiles =
+          (bundle.files as Record<string, string> | undefined) ?? {};
+
+        let created = 0;
+        let skipped = 0;
+
+        for (const [path, content] of Object.entries(importedFiles)) {
+          const normalized = normalizePath(path);
+          const exists = this.app.vault.getAbstractFileByPath(normalized);
+
+          if (exists) {
+            skipped++;
+            continue;
+          }
+
+          // Ensure parent folders exist
+          const lastSlash = normalized.lastIndexOf("/");
+          if (lastSlash > 0) {
+            const parentPath = normalized.substring(0, lastSlash);
+            await this.ensureFolderRecursive(parentPath);
+          }
+
+          await this.app.vault.create(normalized, content);
+          created++;
+        }
+
+        // Re-render settings UI
+        this.display();
+
+        const parts = [`Settings merged.`];
+        if (created > 0) parts.push(`${created} files created.`);
+        if (skipped > 0) parts.push(`${skipped} existing files kept.`);
+        new Notice(parts.join(" "));
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        new Notice(`Import failed: ${msg}`);
+      }
+    });
+
+    input.click();
+  }
+
+  /**
+   * Recursively creates all folders in `path` that don't exist yet.
+   */
+  private async ensureFolderRecursive(path: string): Promise<void> {
+    const normalized = normalizePath(path);
+    if (this.app.vault.getAbstractFileByPath(normalized)) return;
+
+    // Ensure parent exists first
+    const lastSlash = normalized.lastIndexOf("/");
+    if (lastSlash > 0) {
+      await this.ensureFolderRecursive(normalized.substring(0, lastSlash));
+    }
+
+    try {
+      await this.app.vault.createFolder(normalized);
+    } catch {
+      // Folder may have been created by a parallel call
+    }
   }
 }
