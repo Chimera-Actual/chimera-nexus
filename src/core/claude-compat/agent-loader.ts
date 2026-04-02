@@ -145,6 +145,150 @@ export class AgentLoader {
       }
     }
 
+    // Second pass: scan agents from installed plugins in .claude/plugins/*/agents/
+    const pluginsBase = ".claude/plugins";
+    const pluginsExist = await this.vault.adapter.exists(pluginsBase);
+    if (pluginsExist) {
+      let pluginsListing: { files: string[]; folders: string[] };
+      try {
+        pluginsListing = await this.vault.adapter.list(pluginsBase);
+      } catch (err) {
+        console.warn(`[AgentLoader] Failed to list ${pluginsBase}:`, err);
+        pluginsListing = { files: [], folders: [] };
+      }
+
+      for (const pluginPath of pluginsListing.folders) {
+        const pluginDirName = pluginPath.split("/").pop() ?? pluginPath;
+
+        // Skip the _marketplaces reserved directory.
+        if (pluginDirName === "_marketplaces") {
+          continue;
+        }
+
+        // Derive plugin name: prefer plugin.json, fall back to directory name.
+        let pluginName = pluginDirName;
+        const pluginJsonPath = `${pluginPath}/.claude-plugin/plugin.json`;
+        const pluginJsonExists = await this.vault.adapter.exists(pluginJsonPath);
+        if (pluginJsonExists) {
+          try {
+            const raw = await this.vault.adapter.read(pluginJsonPath);
+            const manifest = JSON.parse(raw) as Record<string, unknown>;
+            if (typeof manifest["name"] === "string" && manifest["name"].trim() !== "") {
+              pluginName = manifest["name"].trim();
+            }
+          } catch (err) {
+            console.warn(`[AgentLoader] Could not read plugin.json at "${pluginJsonPath}":`, err);
+          }
+        }
+
+        // Scan the plugin's agents directory.
+        const pluginAgentsPath = `${pluginPath}/agents`;
+        const pluginAgentsExist = await this.vault.adapter.exists(pluginAgentsPath);
+        if (!pluginAgentsExist) {
+          continue;
+        }
+
+        let pluginAgentsListing: { files: string[]; folders: string[] };
+        try {
+          pluginAgentsListing = await this.vault.adapter.list(pluginAgentsPath);
+        } catch (err) {
+          console.warn(`[AgentLoader] Failed to list ${pluginAgentsPath}:`, err);
+          continue;
+        }
+
+        for (const filePath of pluginAgentsListing.files) {
+          if (!filePath.endsWith(".md")) {
+            continue;
+          }
+
+          try {
+            const normalized = normalizePath(filePath);
+            const content = await this.vault.adapter.read(normalized);
+            const { frontmatter, body } = parseFrontmatter(content);
+
+            const stem = filePath.split("/").pop() ?? filePath;
+            const rawAgentName = stem.endsWith(".md") ? stem.slice(0, -3) : stem;
+
+            const baseName =
+              typeof frontmatter["name"] === "string" && frontmatter["name"].trim() !== ""
+                ? frontmatter["name"].trim()
+                : rawAgentName;
+
+            const description =
+              typeof frontmatter["description"] === "string"
+                ? frontmatter["description"]
+                : "";
+
+            const model =
+              typeof frontmatter["model"] === "string" && frontmatter["model"].trim() !== ""
+                ? frontmatter["model"].trim()
+                : "sonnet";
+
+            const rawType = frontmatter["type"];
+            const type: "standard" | "orchestrator" =
+              rawType === "orchestrator" ? "orchestrator" : "standard";
+
+            const allowedTools = toStringArray(frontmatter["allowed_tools"]);
+            const deniedTools = toStringArray(frontmatter["denied_tools"]);
+
+            const rawIsolation = frontmatter["isolation"];
+            const isolation: "none" | "worktree" =
+              rawIsolation === "worktree" ? "worktree" : "none";
+
+            const rawMemory = frontmatter["memory"];
+            const memory: "none" | "vault" | "user" =
+              rawMemory === "none" ? "none" : rawMemory === "user" ? "user" : "vault";
+
+            const rawMaxTokens = frontmatter["max_tokens"];
+            const maxTokens: number | undefined =
+              typeof rawMaxTokens === "number" ? rawMaxTokens : undefined;
+
+            const rawTimeout = frontmatter["timeout_seconds"];
+            const timeoutSeconds: number =
+              typeof rawTimeout === "number" ? rawTimeout : 300;
+
+            const rawOutputFormat = frontmatter["output_format"];
+            const outputFormat: "chat" | "vault_note" =
+              rawOutputFormat === "vault_note" ? "vault_note" : "chat";
+
+            const outputPath: string | undefined =
+              typeof frontmatter["output_path"] === "string"
+                ? frontmatter["output_path"]
+                : undefined;
+
+            const color: string | undefined =
+              typeof frontmatter["color"] === "string"
+                ? frontmatter["color"]
+                : undefined;
+
+            const tags = toStringArray(frontmatter["tags"]);
+
+            const systemPrompt = body.trim();
+
+            agents.push({
+              name: `${pluginName}:${baseName}`,
+              description,
+              model,
+              type,
+              allowedTools,
+              deniedTools,
+              isolation,
+              memory,
+              maxTokens,
+              timeoutSeconds,
+              outputFormat,
+              outputPath,
+              color,
+              systemPrompt,
+              tags,
+            });
+          } catch (err) {
+            console.warn(`[AgentLoader] Error loading plugin agent at "${filePath}":`, err);
+          }
+        }
+      }
+    }
+
     return agents;
   }
 }

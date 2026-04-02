@@ -213,6 +213,47 @@ describe("SkillLoader", () => {
       warnSpy.mockRestore();
     });
 
+    it("discovers skills from plugin directories", async () => {
+      const vault = makeMockVault({
+        exists: jest.fn().mockImplementation(async (path: string) => {
+          const paths = [
+            ".claude/skills",
+            ".claude/plugins",
+            ".claude/plugins/my-plugin/skills",
+            ".claude/plugins/my-plugin/skills/plugin-skill",
+            ".claude/plugins/my-plugin/skills/plugin-skill/SKILL.md",
+            ".claude/plugins/my-plugin/.claude-plugin/plugin.json",
+          ];
+          return paths.includes(path);
+        }),
+        read: jest.fn().mockImplementation(async (path: string) => {
+          if (path.endsWith("SKILL.md")) {
+            return "---\nname: plugin-skill\ndescription: From a plugin\n---\n";
+          }
+          if (path.endsWith("plugin.json")) {
+            return JSON.stringify({ name: "my-plugin" });
+          }
+          return "";
+        }),
+        list: jest.fn().mockImplementation(async (path: string) => {
+          if (path === ".claude/skills") {
+            return { files: [], folders: [] };
+          }
+          if (path === ".claude/plugins") {
+            return { files: [], folders: [".claude/plugins/my-plugin"] };
+          }
+          if (path === ".claude/plugins/my-plugin/skills") {
+            return { files: [], folders: [".claude/plugins/my-plugin/skills/plugin-skill"] };
+          }
+          return { files: [], folders: [] };
+        }),
+      });
+
+      const loader = new SkillLoader(vault);
+      const skills = await loader.loadSkills();
+      expect(skills.some((s) => s.name === "my-plugin:plugin-skill")).toBe(true);
+    });
+
     it("sets both hasScripts and hasReferences when both subdirs exist", async () => {
       const exists = jest.fn().mockImplementation((path: string) => {
         if (path === ".claude/skills") return Promise.resolve(true);

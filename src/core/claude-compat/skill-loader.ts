@@ -99,6 +99,98 @@ export class SkillLoader {
       }
     }
 
+    // Second pass: scan skills from installed plugins in .claude/plugins/*/skills/
+    const pluginsBase = ".claude/plugins";
+    const pluginsExist = await this.vault.adapter.exists(pluginsBase);
+    if (pluginsExist) {
+      let pluginsListing: { files: string[]; folders: string[] };
+      try {
+        pluginsListing = await this.vault.adapter.list(pluginsBase);
+      } catch (err) {
+        console.warn(`[SkillLoader] Failed to list ${pluginsBase}:`, err);
+        pluginsListing = { files: [], folders: [] };
+      }
+
+      for (const pluginPath of pluginsListing.folders) {
+        const pluginDirName = pluginPath.split("/").pop() ?? pluginPath;
+
+        // Skip the _marketplaces reserved directory.
+        if (pluginDirName === "_marketplaces") {
+          continue;
+        }
+
+        // Derive plugin name: prefer plugin.json, fall back to directory name.
+        let pluginName = pluginDirName;
+        const pluginJsonPath = `${pluginPath}/.claude-plugin/plugin.json`;
+        const pluginJsonExists = await this.vault.adapter.exists(pluginJsonPath);
+        if (pluginJsonExists) {
+          try {
+            const raw = await this.vault.adapter.read(pluginJsonPath);
+            const manifest = JSON.parse(raw) as Record<string, unknown>;
+            if (typeof manifest["name"] === "string" && manifest["name"].trim() !== "") {
+              pluginName = manifest["name"].trim();
+            }
+          } catch (err) {
+            console.warn(`[SkillLoader] Could not read plugin.json at "${pluginJsonPath}":`, err);
+          }
+        }
+
+        // Scan the plugin's skills directory.
+        const pluginSkillsPath = `${pluginPath}/skills`;
+        const pluginSkillsExist = await this.vault.adapter.exists(pluginSkillsPath);
+        if (!pluginSkillsExist) {
+          continue;
+        }
+
+        let pluginSkillsListing: { files: string[]; folders: string[] };
+        try {
+          pluginSkillsListing = await this.vault.adapter.list(pluginSkillsPath);
+        } catch (err) {
+          console.warn(`[SkillLoader] Failed to list ${pluginSkillsPath}:`, err);
+          continue;
+        }
+
+        for (const skillFolderPath of pluginSkillsListing.folders) {
+          try {
+            const skillMdPath = `${skillFolderPath}/SKILL.md`;
+            const hasMd = await this.vault.adapter.exists(skillMdPath);
+            if (!hasMd) {
+              continue;
+            }
+
+            const rawName = skillFolderPath.split("/").pop() ?? skillFolderPath;
+            const content = await this.vault.adapter.read(skillMdPath);
+            const { frontmatter } = parseFrontmatter(content);
+
+            const baseName =
+              typeof frontmatter["name"] === "string" && frontmatter["name"].trim() !== ""
+                ? frontmatter["name"].trim()
+                : rawName;
+
+            const description =
+              typeof frontmatter["description"] === "string"
+                ? frontmatter["description"]
+                : "";
+
+            const hasScripts = await this.vault.adapter.exists(`${skillFolderPath}/scripts`);
+            const hasReferences = await this.vault.adapter.exists(
+              `${skillFolderPath}/references`
+            );
+
+            skills.push({
+              name: `${pluginName}:${baseName}`,
+              description,
+              path: skillFolderPath,
+              hasScripts,
+              hasReferences,
+            });
+          } catch (err) {
+            console.warn(`[SkillLoader] Error loading plugin skill at "${skillFolderPath}":`, err);
+          }
+        }
+      }
+    }
+
     return skills;
   }
 }
