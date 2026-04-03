@@ -1,5 +1,6 @@
 import { Setting } from "obsidian";
 import { renderSkillMarketplace } from "./skill-marketplace";
+import { renderConfigTransfer } from "./config-transfer";
 
 /**
  * Renders Chimera Nexus settings into Claudian's settings panel.
@@ -143,4 +144,7 @@ export function renderChimeraSettings(containerEl: HTMLElement, plugin: any): vo
 
   const vaultPath = (plugin.app.vault.adapter as any).basePath || "";
   renderSkillMarketplace(containerEl, vaultPath);
+
+  // Export / Import section
+  renderConfigTransfer(containerEl, plugin);
 }
