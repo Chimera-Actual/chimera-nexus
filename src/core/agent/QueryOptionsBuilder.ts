@@ -206,6 +206,7 @@ export class QueryOptionsBuilder {
         : ['project'],
       env: {
         ...process.env,
+        ANTHROPIC_API_KEY: undefined, // CHIMERA PATCH: prevent stale env var from overriding OAuth
         ...ctx.customEnv,
         PATH: ctx.enhancedPath,
       },
@@ -272,6 +273,7 @@ export class QueryOptionsBuilder {
         : ['project'],
       env: {
         ...process.env,
+        ANTHROPIC_API_KEY: undefined, // CHIMERA PATCH: prevent stale env var from overriding OAuth
         ...ctx.customEnv,
         PATH: ctx.enhancedPath,
       },
