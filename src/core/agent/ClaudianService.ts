@@ -465,6 +465,7 @@ export class ClaudianService {
     try {
       const chimeraManager = (this.plugin as any).chimeraManager;
       if (chimeraManager) {
+        const startTime = Date.now();
         const contextPromise = chimeraManager.getActiveMemoryContext();
         const timeoutPromise = new Promise<string>((resolve) => setTimeout(() => resolve(""), 3000));
         memoryContext = await Promise.race([contextPromise, timeoutPromise]);
