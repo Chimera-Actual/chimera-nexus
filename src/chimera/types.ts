@@ -316,3 +316,135 @@ export interface AgentDefinition {
   /** Arbitrary tags for filtering. */
   tags: string[];
 }
+
+// ---------------------------------------------------------------------------
+// Plugin types (CC-compatible)
+// ---------------------------------------------------------------------------
+
+/**
+ * Installation scope for plugins.
+ * - `user`    - Personal, stored in ~/.claude/settings.json
+ * - `project` - Team, stored in .claude/settings.json (vault)
+ * - `local`   - Project-specific, gitignored (.claude/settings.local.json)
+ */
+export type PluginScope = "user" | "project" | "local";
+
+/**
+ * Author metadata in a plugin manifest.
+ */
+export interface PluginAuthor {
+  name: string;
+  email?: string;
+  url?: string;
+}
+
+/**
+ * A user-configurable value defined by a plugin.
+ * Non-sensitive values go in settings.json, sensitive values in credentials.
+ */
+export interface PluginUserConfigField {
+  description: string;
+  sensitive: boolean;
+}
+
+/**
+ * CC-compatible plugin manifest parsed from `.claude-plugin/plugin.json`.
+ *
+ * Only `name` is required. All other fields are optional.
+ * Paths must be relative and start with `./`.
+ */
+export interface PluginManifest {
+  /** Unique plugin name (kebab-case). Used for namespacing. */
+  name: string;
+  /** Semantic version string. */
+  version?: string;
+  /** Human-readable description. */
+  description?: string;
+  /** Author metadata. */
+  author?: PluginAuthor;
+  /** Documentation URL. */
+  homepage?: string;
+  /** Source code URL. */
+  repository?: string;
+  /** SPDX license identifier. */
+  license?: string;
+  /** Discovery keywords. */
+  keywords?: string[];
+
+  /** Custom path(s) to command files/directories (overrides default `commands/`). */
+  commands?: string | string[];
+  /** Custom path(s) to agent files (overrides default `agents/`). */
+  agents?: string | string[];
+  /** Custom path(s) to skill directories (overrides default `skills/`). */
+  skills?: string | string[];
+  /** Hook configuration -- path(s) or inline object. */
+  hooks?: string | string[] | Record<string, unknown>;
+  /** MCP server configurations -- path(s) or inline object. */
+  mcpServers?: string | string[] | Record<string, unknown>;
+  /** Custom path(s) to output style directories. */
+  outputStyles?: string | string[];
+
+  /** User-configurable values this plugin requires. */
+  userConfig?: Record<string, PluginUserConfigField>;
+  /** Default settings applied when plugin is enabled. */
+  settings?: Record<string, unknown>;
+
+  // --- Chimera runtime fields (not in plugin.json, populated by loader) ---
+  /** Absolute path to the plugin installation directory. */
+  installPath?: string;
+  /** Marketplace this plugin was installed from (e.g. "chimera-official"). */
+  marketplace?: string;
+  /** Whether the plugin is currently enabled. */
+  enabled?: boolean;
+  /** Relative paths to discovered skill directories (auto-populated by loader). */
+  discoveredSkills?: string[];
+  /** Relative paths to discovered agent files (auto-populated by loader). */
+  discoveredAgents?: string[];
+}
+
+/**
+ * Source definition for a plugin in a marketplace index.
+ */
+export type PluginSource =
+  | string
+  | { source: "github"; repo: string; ref?: string; sha?: string }
+  | { source: "url"; url: string; ref?: string; sha?: string }
+  | { source: "git-subdir"; url: string; path: string; ref?: string; sha?: string };
+
+/**
+ * Entry for a single plugin inside a `marketplace.json` index.
+ */
+export interface MarketplacePluginEntry {
+  name: string;
+  source: PluginSource;
+  description?: string;
+  version?: string;
+  author?: PluginAuthor;
+  keywords?: string[];
+  category?: string;
+}
+
+/**
+ * Parsed marketplace index from `.claude-plugin/marketplace.json`.
+ */
+export interface MarketplaceIndex {
+  name: string;
+  owner: { name: string; email?: string };
+  metadata?: {
+    description?: string;
+    version?: string;
+    pluginRoot?: string;
+  };
+  plugins: MarketplacePluginEntry[];
+}
+
+/**
+ * Settings shape used by the plugin command handler.
+ *
+ * This is a Chimera-zone interface that captures the subset of settings
+ * the plugin system needs. It avoids importing from `src/core/` (upstream).
+ */
+export interface PluginCommandSettings {
+  /** Marketplace name -> owner/repo mapping. */
+  marketplaces: Record<string, string>;
+}
