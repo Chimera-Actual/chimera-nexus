@@ -1057,6 +1057,11 @@ export function deactivateTab(tab: TabData): void {
   tab.controllers.selectionController?.stop();
   tab.controllers.browserSelectionController?.stop();
   tab.controllers.canvasSelectionController?.stop();
+
+  // CHIMERA PATCH: Close persistent query to free the concurrent session slot.
+  // Claude Max only allows one active CLI session. The service will re-initialize
+  // lazily via ensureServiceInitialized() when this tab is next used.
+  tab.service?.closePersistentQuery('tab deactivated');
 }
 
 /**

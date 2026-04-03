@@ -242,6 +242,7 @@ export class ClaudianService {
    */
   async ensureReady(options?: EnsureReadyOptions): Promise<boolean> {
     const vaultPath = getVaultPath(this.plugin.app);
+    console.log('[ChimeraDiag] ensureReady called', { vaultPath: !!vaultPath, hasPersistentQuery: !!this.persistentQuery, force: options?.force, sessionId: options?.sessionId });
 
     // Track external context paths for dynamic updates (empty list clears)
     if (options && options.externalContextPaths !== undefined) {
@@ -254,10 +255,12 @@ export class ClaudianService {
 
     // Case 1: Not running → try to start
     if (!this.persistentQuery) {
-      if (!vaultPath) return false;
+      if (!vaultPath) { console.log('[ChimeraDiag] ensureReady: no vaultPath'); return false; }
       const cliPath = this.plugin.getResolvedClaudeCliPath();
-      if (!cliPath) return false;
+      if (!cliPath) { console.log('[ChimeraDiag] ensureReady: no cliPath'); return false; }
+      console.log('[ChimeraDiag] ensureReady: starting persistent query', { cliPath, effectiveSessionId });
       await this.startPersistentQuery(vaultPath, cliPath, effectiveSessionId, externalContextPaths);
+      console.log('[ChimeraDiag] ensureReady: persistent query started');
       return true;
     }
 
@@ -335,10 +338,12 @@ export class ClaudianService {
       externalContextPaths
     );
 
+    console.log('[ChimeraDiag] calling agentQuery()', { model: options.model, cliPath: options.pathToClaudeCodeExecutable, resume: !!resumeSessionId });
     this.persistentQuery = agentQuery({
       prompt: this.messageChannel,
       options,
     });
+    console.log('[ChimeraDiag] agentQuery() returned', { hasQuery: !!this.persistentQuery });
 
     if (this.pendingResumeAt === resumeSessionAt) {
       this.pendingResumeAt = undefined;
@@ -346,6 +351,7 @@ export class ClaudianService {
     this.attachPersistentQueryStdinErrorHandler(this.persistentQuery);
 
     this.startResponseConsumer();
+    console.log('[ChimeraDiag] response consumer started');
     this.notifyReadyStateChange();
   }
 
@@ -465,11 +471,17 @@ export class ClaudianService {
     try {
       const chimeraManager = (this.plugin as any).chimeraManager;
       if (chimeraManager) {
+        console.log('[ChimeraDiag] fetching memory context...');
+        const startTime = Date.now();
         const contextPromise = chimeraManager.getActiveMemoryContext();
         const timeoutPromise = new Promise<string>((resolve) => setTimeout(() => resolve(""), 3000));
         memoryContext = await Promise.race([contextPromise, timeoutPromise]);
+        console.log('[ChimeraDiag] memory context resolved in ' + (Date.now() - startTime) + 'ms, length=' + memoryContext.length);
+      } else {
+        console.log('[ChimeraDiag] no chimeraManager, skipping memory context');
       }
-    } catch {
+    } catch (err) {
+      console.log('[ChimeraDiag] memory context error:', err);
       // Memory context is optional, don't block queries
     }
 
@@ -563,24 +575,34 @@ export class ClaudianService {
    */
   private startResponseConsumer(): void {
     if (this.responseConsumerRunning) {
+      console.log('[ChimeraDiag] startResponseConsumer: already running, skipping');
       return;
     }
 
     this.responseConsumerRunning = true;
+    console.log('[ChimeraDiag] startResponseConsumer: starting loop');
 
     // Track which query this consumer is for, to detect if we were replaced
     const queryForThisConsumer = this.persistentQuery;
 
     this.responseConsumerPromise = (async () => {
-      if (!this.persistentQuery) return;
+      if (!this.persistentQuery) { console.log('[ChimeraDiag] consumer: no persistentQuery, exiting'); return; }
 
       try {
+        console.log('[ChimeraDiag] consumer: entering for-await loop');
+        let messageCount = 0;
         for await (const message of this.persistentQuery) {
+          messageCount++;
+          if (messageCount <= 3 || messageCount % 10 === 0) {
+            console.log('[ChimeraDiag] consumer: received message #' + messageCount, { type: (message as Record<string, unknown>).type, subtype: (message as Record<string, unknown>).subtype });
+          }
           if (this.shuttingDown) break;
 
           await this.routeMessage(message);
         }
+        console.log('[ChimeraDiag] consumer: for-await loop ended normally after ' + messageCount + ' messages');
       } catch (error) {
+        console.log('[ChimeraDiag] consumer: for-await loop threw error', error);
         // Skip error handling if this consumer was replaced by a new one.
         // This prevents race conditions where the OLD consumer's error handler
         // interferes with the NEW handler after a restart (e.g., from applyDynamicUpdates).
@@ -968,10 +990,12 @@ export class ClaudianService {
     queryOptions?: QueryOptions
   ): AsyncGenerator<StreamChunk> {
     if (!this.persistentQuery || !this.messageChannel) {
+      console.log('[ChimeraDiag] queryViaPersistent: no persistent query/channel, falling back to cold-start');
       // Fallback to cold-start if persistent query not available
       yield* this.queryViaSDK(prompt, vaultPath, cliPath, images, queryOptions);
       return;
     }
+    console.log('[ChimeraDiag] queryViaPersistent: using persistent query', { responseConsumerRunning: this.responseConsumerRunning });
 
     // Set allowed tools for canUseTool enforcement
     // undefined = no restriction, [] = no tools, [...] = restricted
