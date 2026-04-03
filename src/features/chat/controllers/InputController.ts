@@ -143,6 +143,16 @@ export class InputController {
       return;
     }
 
+    // Check for /plugin command (Chimera plugin management)
+    if (content.startsWith('/plugin')) {
+      if (shouldUseInput) {
+        inputEl.value = '';
+        this.deps.resetInputHeight();
+      }
+      await this.executePluginCommand(content);
+      return;
+    }
+
     // If agent is working, queue the message instead of dropping it
     if (state.isStreaming) {
       const images = hasImages ? [...(imageContextManager?.getAttachedImages() || [])] : undefined;
@@ -989,6 +999,66 @@ export class InputController {
       default:
         // Unknown command - notify user
         new Notice(`Unknown command: ${action}`);
+    }
+  }
+
+  private async executePluginCommand(content: string): Promise<void> {
+    const { state, plugin } = this.deps;
+    const renderer = this.deps.renderer;
+
+    // Show user message
+    const userMsg: ChatMessage = {
+      id: this.deps.generateId(),
+      role: 'user',
+      content,
+      displayContent: content,
+      timestamp: Date.now(),
+    };
+    state.addMessage(userMsg);
+    renderer.addMessage(userMsg);
+
+    // Extract args (everything after "/plugin")
+    const args = content.slice('/plugin'.length).trim();
+
+    // Execute plugin command
+    const { PluginCommandHandler } = await import('../../../chimera/compat/plugin-command');
+    const handler = new PluginCommandHandler(plugin.app.vault);
+    const context = {
+      vault: plugin.app.vault,
+      settings: plugin.settings as unknown as import('../../../chimera/types').PluginCommandSettings,
+      addChatMessage: (role: 'user' | 'assistant', msg: string) => {
+        const chatMsg: ChatMessage = {
+          id: this.deps.generateId(),
+          role,
+          content: msg,
+          displayContent: msg,
+          timestamp: Date.now(),
+        };
+        state.addMessage(chatMsg);
+        renderer.addMessage(chatMsg);
+      },
+      saveSettings: async () => {
+        await plugin.saveData(plugin.settings);
+      },
+    };
+
+    let result: string;
+    try {
+      result = await handler.execute(args, context);
+    } catch (err) {
+      result = `Plugin command failed: ${err instanceof Error ? err.message : String(err)}`;
+    }
+
+    if (result) {
+      const assistantMsg: ChatMessage = {
+        id: this.deps.generateId(),
+        role: 'assistant',
+        content: result,
+        displayContent: result,
+        timestamp: Date.now(),
+      };
+      state.addMessage(assistantMsg);
+      renderer.addMessage(assistantMsg);
     }
   }
 
