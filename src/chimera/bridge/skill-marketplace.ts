@@ -38,7 +38,7 @@ const CURATED_SKILLS: SkillRepo[] = [
     author: "Anthropic",
     description: "Official Anthropic skills: PDF, DOCX, PPTX, XLSX, frontend design, canvas art, MCP builder, and more",
     repo: "anthropics/anthropic-agent-skills",
-    installCmd: "claude plugins:install anthropic-agent-skills",
+    installCmd: "git clone --depth 1 https://github.com/anthropics/anthropic-agent-skills.git .claude/plugins/anthropic-agent-skills",
     skills: ["pdf", "docx", "pptx", "xlsx", "frontend-design", "canvas-design", "mcp-builder", "brand-guidelines", "skill-creator", "web-artifacts-builder"],
   },
   {
@@ -46,7 +46,7 @@ const CURATED_SKILLS: SkillRepo[] = [
     author: "Steph Ango (kepano)",
     description: "Essential Obsidian skills: markdown syntax, bases, canvas, CLI, web scraping",
     repo: "kepano/obsidian-skills",
-    installCmd: "npx obsidian-skills",
+    installCmd: "git clone --depth 1 https://github.com/kepano/obsidian-skills.git .claude/skills/obsidian-skills",
     skills: ["obsidian-markdown", "obsidian-bases", "json-canvas", "obsidian-cli", "defuddle"],
   },
   {
@@ -54,7 +54,7 @@ const CURATED_SKILLS: SkillRepo[] = [
     author: "riyavsinha",
     description: "Comprehensive skill pack: TDD, code review, architecture, security, E2E testing, documentation",
     repo: "riyavsinha/everything-claude-code",
-    installCmd: "claude plugins:install everything-claude-code",
+    installCmd: "git clone --depth 1 https://github.com/riyavsinha/everything-claude-code.git .claude/plugins/everything-claude-code",
     skills: ["tdd", "code-review", "architect", "security-review", "e2e", "build-error-resolver", "doc-updater"],
   },
   {
@@ -62,7 +62,7 @@ const CURATED_SKILLS: SkillRepo[] = [
     author: "Claude Plugins Official",
     description: "Planning, brainstorming, subagent-driven development, git worktrees, debugging workflows",
     repo: "anthropics/claude-code-plugins",
-    installCmd: "claude plugins:install superpowers",
+    installCmd: "git clone --depth 1 https://github.com/anthropics/claude-code-plugins.git .claude/plugins/superpowers",
     skills: ["brainstorming", "writing-plans", "executing-plans", "subagent-driven-development", "systematic-debugging", "verification-before-completion"],
   },
 ];
