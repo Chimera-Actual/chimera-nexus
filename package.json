@@ -1,6 +1,6 @@
 {
   "name": "chimera-nexus",
-  "version": "1.3.72",
+  "version": "1.3.73",
   "description": "Claudian - Claude Code embedded in Obsidian sidebar",
   "main": "main.js",
   "scripts": {
