@@ -3,11 +3,13 @@
  *
  * Renders a curated list of community skill repositories and lets users
  * install them into the vault's `.claude/skills/` directory via a single
- * button click.
+ * button click. Detects already-installed skills and offers update instead.
  */
 
 import { Setting, Notice } from "obsidian";
 import { exec, ExecOptions } from "child_process";
+import * as fs from "fs";
+import * as path from "path";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -51,7 +53,7 @@ const CURATED_SKILLS: SkillRepo[] = [
   },
   {
     name: "Everything Claude Code",
-    author: "riyavsinha",
+    author: "affaan-m",
     description: "Comprehensive skill pack: TDD, code review, architecture, security, E2E testing, documentation",
     repo: "affaan-m/everything-claude-code",
     installCmd: "git clone --depth 1 https://github.com/affaan-m/everything-claude-code.git .claude/plugins/everything-claude-code",
@@ -74,7 +76,7 @@ const CURATED_SKILLS: SkillRepo[] = [
 /**
  * Renders the Skill Marketplace section into the given settings container.
  *
- * Displays a curated list of skill repos with Install and GitHub buttons,
+ * Displays a curated list of skill repos with Install/Update and GitHub buttons,
  * followed by a static note about the installed skills section (populated at
  * runtime when the settings page is next opened).
  *
@@ -91,24 +93,49 @@ export function renderSkillMarketplace(containerEl: HTMLElement, vaultPath: stri
   });
 
   for (const repo of CURATED_SKILLS) {
+    const installDir = getInstallDir(repo.installCmd);
+    const installed = isInstalled(vaultPath, installDir);
+
     const repoSetting = new Setting(containerEl)
       .setName(repo.name)
       .setDesc(`${repo.description}\nBy ${repo.author} | Skills: ${repo.skills.join(", ")}`);
 
     repoSetting.addButton((btn) => {
-      btn.setButtonText("Install");
+      btn.setButtonText(installed ? "Update" : "Install");
+      if (installed) btn.setCta();
+
       btn.onClick(async () => {
-        btn.setButtonText("Installing...");
-        btn.setDisabled(true);
-        try {
-          await runCommand(repo.installCmd, vaultPath);
-          new Notice(`${repo.name} installed successfully`);
-          btn.setButtonText("Installed");
-        } catch (err) {
-          const msg = err instanceof Error ? err.message : String(err);
-          new Notice(`Failed to install: ${msg}`);
-          btn.setButtonText("Install");
-          btn.setDisabled(false);
+        const currentlyInstalled = isInstalled(vaultPath, installDir);
+
+        if (currentlyInstalled) {
+          btn.setButtonText("Updating...");
+          btn.setDisabled(true);
+          try {
+            await runCommand("git pull", path.join(vaultPath, installDir));
+            new Notice(`${repo.name} updated successfully`);
+            btn.setButtonText("Update");
+            btn.setDisabled(false);
+          } catch (err) {
+            const msg = err instanceof Error ? err.message : String(err);
+            new Notice(`Failed to update: ${msg}`);
+            btn.setButtonText("Update");
+            btn.setDisabled(false);
+          }
+        } else {
+          btn.setButtonText("Installing...");
+          btn.setDisabled(true);
+          try {
+            await runCommand(repo.installCmd, vaultPath);
+            new Notice(`${repo.name} installed successfully`);
+            btn.setButtonText("Update");
+            btn.setCta();
+            btn.setDisabled(false);
+          } catch (err) {
+            const msg = err instanceof Error ? err.message : String(err);
+            new Notice(`Failed to install: ${msg}`);
+            btn.setButtonText("Install");
+            btn.setDisabled(false);
+          }
         }
       });
     });
@@ -119,6 +146,36 @@ export function renderSkillMarketplace(containerEl: HTMLElement, vaultPath: stri
         window.open(`https://github.com/${repo.repo}`);
       });
     });
+
+    if (installed) {
+      repoSetting.addButton((btn) => {
+        btn.setButtonText("Uninstall");
+        btn.setWarning();
+        btn.onClick(async () => {
+          btn.setButtonText("Removing...");
+          btn.setDisabled(true);
+          try {
+            const fullPath = path.join(vaultPath, installDir);
+            await removeDirectory(fullPath);
+            new Notice(`${repo.name} uninstalled`);
+            // Reset the install button back to "Install"
+            const buttons = repoSetting.controlEl.querySelectorAll("button");
+            if (buttons[0]) {
+              buttons[0].textContent = "Install";
+              buttons[0].disabled = false;
+              buttons[0].removeClass("mod-cta");
+            }
+            btn.setButtonText("Uninstall");
+            btn.setDisabled(true);
+          } catch (err) {
+            const msg = err instanceof Error ? err.message : String(err);
+            new Notice(`Failed to uninstall: ${msg}`);
+            btn.setButtonText("Uninstall");
+            btn.setDisabled(false);
+          }
+        });
+      });
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -144,6 +201,33 @@ export function renderSkillMarketplace(containerEl: HTMLElement, vaultPath: stri
 // ---------------------------------------------------------------------------
 
 /**
+ * Extracts the install directory from the git clone command.
+ * e.g. "git clone --depth 1 https://... .claude/plugins/foo" -> ".claude/plugins/foo"
+ */
+function getInstallDir(installCmd: string): string {
+  const parts = installCmd.split(" ");
+  return parts[parts.length - 1];
+}
+
+/**
+ * Checks if a skill directory already exists in the vault.
+ */
+function isInstalled(vaultPath: string, installDir: string): boolean {
+  try {
+    return fs.existsSync(path.join(vaultPath, installDir));
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Recursively removes a directory.
+ */
+function removeDirectory(dirPath: string): Promise<void> {
+  return fs.promises.rm(dirPath, { recursive: true, force: true });
+}
+
+/**
  * Runs `cmd` in a shell with `cwd` as the working directory, resolving when
  * the process exits with code 0 or rejecting with the stderr/error message.
  *
@@ -152,7 +236,6 @@ export function renderSkillMarketplace(containerEl: HTMLElement, vaultPath: stri
  */
 function runCommand(cmd: string, cwd: string): Promise<void> {
   return new Promise<void>((resolve, reject) => {
-    // shell is typed as `string` in some @types/node versions; cast to satisfy strict checks.
     const opts: ExecOptions = { cwd, timeout: 60000, shell: process.platform === "win32" ? "cmd.exe" : "/bin/sh" };
     exec(cmd, opts, (err, _stdout, stderr) => {
       if (err) {
