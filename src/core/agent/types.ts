@@ -112,6 +112,7 @@ export interface PersistentQueryConfig {
   settingSources: string;
   claudeCliPath: string;
   enableChrome: boolean;  // Whether --chrome flag is passed to CLI
+  enableRemoteControl: boolean;  // Whether remote control is active for this session
 }
 
 export interface SessionState {

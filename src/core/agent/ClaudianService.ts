@@ -340,6 +340,13 @@ export class ClaudianService {
       options,
     });
 
+    // CHIMERA PATCH: enable remote control via SDK control request (not CLI flag)
+    if (this.plugin.settings.enableRemoteControl) {
+      (this.persistentQuery as unknown as { enableRemoteControl(enabled: boolean): Promise<unknown> })
+        .enableRemoteControl(true)
+        .catch(() => { /* session may not support remote control */ });
+    }
+
     if (this.pendingResumeAt === resumeSessionAt) {
       this.pendingResumeAt = undefined;
     }
@@ -1213,6 +1220,18 @@ export class ClaudianService {
         this.currentConfig.permissionMode = permissionMode;
       } catch {
         new Notice('Failed to update permission mode');
+      }
+    }
+
+    // CHIMERA PATCH: toggle remote control dynamically
+    const remoteControl = this.plugin.settings.enableRemoteControl;
+    if (this.currentConfig && remoteControl !== this.currentConfig.enableRemoteControl) {
+      try {
+        await (this.persistentQuery as unknown as { enableRemoteControl(enabled: boolean): Promise<unknown> })
+          .enableRemoteControl(remoteControl);
+        this.currentConfig.enableRemoteControl = remoteControl;
+      } catch {
+        new Notice('Failed to update remote control');
       }
     }
 

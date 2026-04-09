@@ -178,6 +178,7 @@ export class QueryOptionsBuilder {
       settingSources: ctx.settings.loadUserClaudeSettings ? 'user,project' : 'project',
       claudeCliPath: ctx.cliPath,
       enableChrome: ctx.settings.enableChrome,
+      enableRemoteControl: ctx.settings.enableRemoteControl,
     };
   }
 
@@ -348,10 +349,8 @@ export class QueryOptionsBuilder {
     if (settings.enableChrome) {
       options.extraArgs = { ...options.extraArgs, chrome: null };
     }
-    // CHIMERA PATCH: remote control support
-    if (settings.enableRemoteControl) {
-      options.extraArgs = { ...options.extraArgs, 'remote-control': null };
-    }
+    // CHIMERA PATCH: remote control is handled post-session via enableRemoteControl()
+    // on the Query object (see ClaudianService.startPersistentQuery), not via CLI flags.
   }
 
   private static applyThinking(
