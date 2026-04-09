@@ -341,9 +341,15 @@ export class ClaudianService {
     });
 
     // CHIMERA PATCH: enable remote control via SDK control request (not CLI flag)
+    // Must await initialization before sending control requests — the CLI subprocess
+    // rejects requests that arrive before the initialize handshake completes.
     if (this.plugin.settings.enableRemoteControl) {
-      (this.persistentQuery as unknown as { enableRemoteControl(enabled: boolean): Promise<unknown> })
-        .enableRemoteControl(true)
+      const q = this.persistentQuery as unknown as {
+        initializationResult(): Promise<unknown>;
+        enableRemoteControl(enabled: boolean): Promise<unknown>;
+      };
+      q.initializationResult()
+        .then(() => q.enableRemoteControl(true))
         .catch(() => { /* session may not support remote control */ });
     }
 

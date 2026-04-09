@@ -1,8 +1,10 @@
 # CLAUDE.md
 
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
 ## Project Overview
 
-Claudian - An Obsidian plugin that embeds Claude Code as a sidebar chat interface. The vault directory becomes Claude's working directory, giving it full agentic capabilities: file read/write, bash commands, and multi-step workflows.
+Chimera Nexus — A fork of [Claudian](https://github.com/YishenTu/claudian) (an Obsidian plugin that embeds Claude Code as a sidebar chat). Adds a vault-native memory system that learns from conversations, with facts/decisions/corrections automatically extracted and stored as markdown in `.claude/memory/`. Memory context is injected into every conversation's system prompt.
 
 ## Commands
 
@@ -34,10 +36,16 @@ npm run test:watch # Run tests in watch mode
 ```bash
 npm run test -- --selectProjects unit        # Run unit tests
 npm run test -- --selectProjects integration # Run integration tests
+npm run test -- --selectProjects chimera     # Run Chimera-specific tests
 npm run test:coverage -- --selectProjects unit # Unit coverage
+npm run test -- --selectProjects unit --testPathPattern <pattern> # Single test
 ```
 
-Tests mirror `src/` structure in `tests/unit/` and `tests/integration/`.
+Tests mirror `src/` structure: `tests/unit/`, `tests/integration/`, `tests/chimera/`.
+
+### Path Aliases
+
+`@/*` → `src/*`, `@test/*` → `tests/*` (configured in tsconfig and jest moduleNameMapper). External deps (`obsidian`, `@anthropic-ai/claude-agent-sdk`) are mocked in `tests/__mocks__/`.
 
 ## Storage
 
@@ -82,17 +90,36 @@ This repository is a fork of Claudian with Chimera Nexus extensions.
 - `src/chimera/bridge/` -- Boundary layer connecting both zones
 
 ### Chimera Modules
-- `chimera/memory/memory-injector.ts` -- Builds memory context for system prompt
-- `chimera/memory/memory-extractor.ts` -- Extracts signals from conversations
-- `chimera/memory/session-summarizer.ts` -- Creates compressed session summaries
-- `chimera/bridge/chimera-manager.ts` -- Central coordinator
-- `chimera/bridge/settings-bridge.ts` -- Adds settings to Claudian UI
-- `chimera/types.ts` -- Memory-specific type definitions
-- `chimera/utils/frontmatter.ts` -- YAML frontmatter parser
-- `chimera/utils/token-counter.ts` -- Token estimation
+- `src/chimera/memory/memory-injector.ts` -- Builds memory context for system prompt (TTL-cached 5 min, 4-layer assembly)
+- `src/chimera/memory/memory-extractor.ts` -- Extracts signals from conversations (debounced 10s, scans last 20 messages)
+- `src/chimera/memory/session-summarizer.ts` -- Creates compressed session summaries
+- `src/chimera/memory/dream-runner.ts` -- Periodic memory consolidation (inventory → extract → consolidate → reorganize)
+- `src/chimera/bridge/chimera-manager.ts` -- Central coordinator
+- `src/chimera/bridge/settings-bridge.ts` -- Adds settings to Claudian UI
+- `src/chimera/bridge/config-transfer.ts` -- Config export/import
+- `src/chimera/bridge/skill-marketplace.ts` -- Skill discovery and install
+- `src/chimera/types.ts` -- Memory-specific type definitions
+- `src/chimera/utils/frontmatter.ts` -- YAML frontmatter parser
+- `src/chimera/utils/token-counter.ts` -- Token estimation
+
+### Patches (6 surgical patches, ~30 lines total)
+
+Each patch is in `patches/` with docs. Every patched line has a `// CHIMERA PATCH:` comment.
+
+| # | File | What |
+|---|------|------|
+| 01 | `src/core/prompts/mainAgent.ts` | Adds `memoryContext` to system prompt |
+| 02 | `src/core/agent/QueryOptionsBuilder.ts` | Threads `memoryContext` through query options |
+| 03 | `src/main.ts` | Initializes/cleans up `ChimeraManager` |
+| 04 | `src/core/agent/ClaudianService.ts` | Makes `buildQueryOptionsContext` async, fetches memory |
+| 05 | `src/features/chat/controllers/ConversationController.ts` | Fire-and-forget memory extraction after conversation |
+| 06 | `src/features/settings/ClaudianSettings.ts` | Renders Chimera settings section |
+
+### Upstream Merges
+
+Claudian upstream is tracked via the `upstream` remote. Process: fetch → merge --no-commit → check conflicts against patches → re-apply patches → test → smoke test. See `patches/README.md`.
 
 ### Coding Conventions (Chimera additions)
 - All Chimera code in `src/chimera/` -- never import Claudian internals directly
 - Bridge files are the ONLY place that imports from both zones
-- Patches to Claudian code are tracked in `patches/` with documentation
 - Every patch has a `// CHIMERA PATCH:` comment
