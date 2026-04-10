@@ -1856,8 +1856,12 @@ export class ClaudianService {
   }
 
   private mapToSDKPermissionMode(mode: PermissionMode): SDKPermissionMode {
-    if (mode === 'yolo') return 'bypassPermissions';
-    if (mode === 'plan') return 'plan';
-    return 'acceptEdits';
+    const modeMap: Record<PermissionMode, SDKPermissionMode> = {
+      normal: 'default',
+      acceptEdits: 'acceptEdits',
+      plan: 'plan',
+      yolo: 'bypassPermissions',
+    };
+    return modeMap[mode] ?? 'default';
   }
 }

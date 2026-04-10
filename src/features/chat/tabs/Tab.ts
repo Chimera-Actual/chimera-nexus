@@ -1184,6 +1184,7 @@ export function setupServiceCallbacks(tab: TabData, plugin: ClaudianPlugin): voi
       let mode: PermissionMode;
       if (sdkMode === 'bypassPermissions') mode = 'yolo';
       else if (sdkMode === 'plan') mode = 'plan';
+      else if (sdkMode === 'acceptEdits') mode = 'acceptEdits';
       else mode = 'normal';
 
       if (plugin.settings.permissionMode !== mode) {
